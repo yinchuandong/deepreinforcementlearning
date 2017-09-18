@@ -181,8 +181,7 @@ class DQNTrainer(object):
 
             self.agent.perceive(s_t, action, reward, s_t1, done)
             s_t = s_t1
-            print ("global_t=%d / action_id=%d reward=%.2f ") \
-                % (self.agent.global_t, action, reward)
+            print ('global_t=%d / action_id=%d reward=%.2f ' % (self.agent.global_t, action, reward))
         return
 
     def signal_handler(self, signal_, frame_):
@@ -200,15 +199,15 @@ class DQNTrainer(object):
         signal.pause()
         print('Now saving data....')
         train_thread.join()
-        # backup(self.sess, self.saver, flags.checkpoint_dir, self.global_t)
+        self.agent.backup_session()
         return
 
 
 def main(args):
     config = tf.app.flags.FLAGS
     trainer = DQNTrainer(config)
-    trainer._train_function()
-    # trainer.run()
+    # trainer._train_function()
+    trainer.run()
     return
 
 
@@ -219,7 +218,7 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_integer('max_time_step', 10 * 10 ** 7, 'max steps to train')
     tf.app.flags.DEFINE_integer('replay_size', 1 * 10 ** 5, 'the size of replay buffer')
 
-    tf.app.flags.DEFINE_boolean('use_double_dqn', True, 'whether use target net to estimate Q_target')
+    tf.app.flags.DEFINE_boolean('use_double_dqn', False, 'whether use target net to estimate Q_target')
     tf.app.flags.DEFINE_boolean('use_duel_dqn', False, 'whether use duelling channel')
     tf.app.flags.DEFINE_boolean('use_rgb', False, 'whether use rgb or gray image')
     tf.app.flags.DEFINE_integer('state_dim', 84, 'the width and height of state')
