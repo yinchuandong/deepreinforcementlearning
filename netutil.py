@@ -1,3 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
 import numpy as np
 import tensorflow as tf
 
@@ -17,8 +22,14 @@ def conv_initializer(kernel_width, kernel_height, input_channels, dtype=tf.float
 
 
 def fc_variable(shape, name):
-    W = tf.get_variable('W_{0}'.format(name), shape, initializer=fc_initializer(shape[0]))
-    b = tf.get_variable('b_{0}'.format(name), shape[1:], initializer=fc_initializer(shape[0]))
+    name_w = "W_{0}".format(name)
+    name_b = "b_{0}".format(name)
+
+    W = tf.get_variable(name_w, shape, initializer=fc_initializer(shape[0]))
+    b = tf.get_variable(name_b, shape[1:], initializer=fc_initializer(shape[0]))
+
+    variable_summaries(W, name_w)
+    variable_summaries(b, name_b)
     return W, b
 
 
@@ -38,6 +49,9 @@ def conv_variable(weight_shape, name, deconv=False):
 
     weight = tf.get_variable(name_w, weight_shape, initializer=conv_initializer(w, h, input_channels))
     bias = tf.get_variable(name_b, bias_shape, initializer=conv_initializer(w, h, input_channels))
+
+    variable_summaries(weight, name_w)
+    variable_summaries(bias, name_b)
     return weight, bias
 
 
@@ -53,11 +67,8 @@ def deconv2d(x, W, input_width, input_height, stride):
     out_height, out_width = get2d_deconv_output_size(
         input_height, input_width, filter_height, filter_width, stride, 'VALID')
     batch_size = tf.shape(x)[0]
-    output_shape = tf.stack(
-        [batch_size, out_height, out_width, out_channel])
-    return tf.nn.conv2d_transpose(x, W, output_shape,
-                                  strides=[1, stride, stride, 1],
-                                  padding='VALID')
+    output_shape = tf.stack([batch_size, out_height, out_width, out_channel])
+    return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='VALID')
 
 
 def get2d_deconv_output_size(input_height, input_width, filter_height, filter_width, stride, padding_type):
@@ -70,13 +81,18 @@ def get2d_deconv_output_size(input_height, input_width, filter_height, filter_wi
     return out_height, out_width
 
 
+def flatten_conv_layer(h_conv):
+    h_conv_flat_size = np.prod(h_conv.get_shape().as_list()[1:])
+    h_conv_flat = tf.reshape(h_conv, [-1, h_conv_flat_size])
+    return h_conv_flat_size, h_conv_flat
+
+
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
 
 
 def lstm_last_relevant(output, length):
-    '''
-    get the last relevant frame of the output of tf.nn.dynamica_rnn()
+    ''' get the last relevant frame of the output of tf.nn.dynamica_rnn()
     '''
     batch_size = tf.shape(output)[0]
     max_length = int(output.get_shape()[1])
@@ -87,25 +103,39 @@ def lstm_last_relevant(output, length):
     return relevant
 
 
-def update_target_graph_op(trainable_vars, tau=0.001):
-    '''
-    theta_prime = tau * theta + (1 - tau) * theta_prime
-    '''
-    size = len(trainable_vars)
-    update_ops = []
-    for i, var in enumerate(trainable_vars[0:size / 2]):
-        target = trainable_vars[size // 2 + i]
-        # op = tf.assign(target, tau * var.value() + (1 - tau) * target.value())
-        op = tf.assign(target, var.value())
-        update_ops.append(op)
-    return update_ops
+def variable_summaries(var, name=None):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries'):
+        with tf.name_scope(name):
+            mean = tf.reduce_mean(var)
+            tf.summary.scalar('mean', mean)
+            with tf.name_scope('stddev'):
+                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+            tf.summary.scalar('stddev', stddev)
+            tf.summary.scalar('max', tf.reduce_max(var))
+            tf.summary.scalar('min', tf.reduce_min(var))
+            tf.summary.histogram('histogram', var)
+    return
 
 
-def update_target(session, update_ops):
-    session.run(update_ops)
-    tf_vars = tf.trainable_variables()
-    size = len(tf.trainable_variables())
-    theta = session.run(tf_vars[0])
-    theta_prime = session.run(tf_vars[size // 2])
-    assert(theta.all() == theta_prime.all())
+def restore_session(sess, saver, checkpoint_dir):
+    checkpoint = tf.train.get_checkpoint_state(checkpoint_dir)
+    if checkpoint and checkpoint.model_checkpoint_path:
+        saver.restore(sess, checkpoint.model_checkpoint_path)
+        print ('checkpoint loaded:', checkpoint.model_checkpoint_path)
+        tokens = checkpoint.model_checkpoint_path.split('-')
+        # set global step
+        global_t = int(tokens[1])
+        print ('>>> global step set: ', global_t)
+        return global_t
+    else:
+        print ('Could not find old checkpoint')
+        return 0
+    return
+
+
+def backup_session(sess, saver, checkpoint_dir, global_t):
+    if not os.path.exists(checkpoint_dir):
+        os.mkdir(checkpoint_dir)
+    saver.save(sess, checkpoint_dir + '/' + 'checkpoint', global_step=global_t)
     return
