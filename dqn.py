@@ -131,8 +131,10 @@ class DQNAgent(BaseAgent):
         batch_next_state = [t[3] for t in minibatch]
         batch_done = np.array([int(t[4]) for t in minibatch])
 
-        # Q_value_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
-        Q_value_next = self.sess.run(self.target_net.Q, feed_dict={self.target_net.state: batch_next_state})
+        if self.config.use_double_dqn:
+            Q_value_next = self.sess.run(self.target_net.Q, feed_dict={self.target_net.state: batch_next_state})
+        else:
+            Q_value_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
         Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_value_next, axis=1)
 
         self.sess.run(self.apply_gradients, feed_dict={
@@ -140,6 +142,9 @@ class DQNAgent(BaseAgent):
             self.main_net.action: batch_action,
             self.main_net.Q_target: Q_target,
         })
+
+        if self.config.use_double_dqn:
+            self.sess.run(self.sync_target_net)
         return
 
 
@@ -176,6 +181,8 @@ class DQNTrainer(object):
 
             self.agent.perceive(s_t, action, reward, s_t1, done)
             s_t = s_t1
+            print ("global_t=%d / action_id=%d reward=%.2f ") \
+                % (self.agent.global_t, action, reward)
         return
 
     def signal_handler(self, signal_, frame_):
@@ -212,6 +219,8 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_integer('max_time_step', 10 * 10 ** 7, 'max steps to train')
     tf.app.flags.DEFINE_integer('replay_size', 1 * 10 ** 5, 'the size of replay buffer')
 
+    tf.app.flags.DEFINE_boolean('use_double_dqn', True, 'whether use target net to estimate Q_target')
+    tf.app.flags.DEFINE_boolean('use_duel_dqn', False, 'whether use duelling channel')
     tf.app.flags.DEFINE_boolean('use_rgb', False, 'whether use rgb or gray image')
     tf.app.flags.DEFINE_integer('state_dim', 84, 'the width and height of state')
     tf.app.flags.DEFINE_integer('state_chn', 4, 'the channel of state')
