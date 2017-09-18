@@ -49,11 +49,13 @@ class Network(BaseNetwork):
         return
 
     def _prepare_loss(self):
-        self.action = tf.placeholder(tf.float32, shape=[None, self._action_dim])
-        self.Q_target = tf.placeholder(tf.float32, shape=[None])
+        with tf.name_scope(self._scope):
+            self.action = tf.placeholder(tf.int64, shape=[None], name='action')
+            self.Q_target = tf.placeholder(tf.float32, shape=[None], name='Q_targe')
 
-        Q_value = tf.reduce_sum(self.Q * self.action, axis=1)
-        self.loss = tf.reduce_mean(tf.square(self.Q_target - Q_value))
+            action_onehot = tf.one_hot(self.action, self._action_dim)
+            Q_value = tf.reduce_sum(self.Q * action_onehot, axis=1)
+            self.loss = tf.reduce_mean(tf.square(self.Q_target - Q_value))
         return
 
     @property
@@ -113,7 +115,7 @@ class DQNAgent(BaseAgent):
 
     def perceive(self, state, action, reward, next_state, done):
         self.global_t += 1
-        self.replay_buffer([state, action, reward, next_state, done])
+        self.replay_buffer.append([state, action, reward, next_state, done])
         if len(self.replay_buffer) > self.config.batch_size * 2:
             self._update_weights()
 
@@ -122,18 +124,22 @@ class DQNAgent(BaseAgent):
         return
 
     def _update_weights(self):
-        minibatch = random.sample(self.replay_buffer, config.batch_size)
-        print(minibatch)
-        # batch_state = [t[0] for t in minibatch]
-        # batch_action = [t[1] for t in minibatch]
-        # batch_reward = [t[2] for t in minibatch]
-        # batch_next_state = [t[3] for t in minibatch]
-        # batch_done = [int(t[4]) for t in minibatch]
+        minibatch = random.sample(self.replay_buffer, self.config.batch_size)
+        batch_state = [t[0] for t in minibatch]
+        batch_action = [t[1] for t in minibatch]
+        batch_reward = [t[2] for t in minibatch]
+        batch_next_state = [t[3] for t in minibatch]
+        batch_done = np.array([int(t[4]) for t in minibatch])
 
-        # Q_next = self.sess.run(self.main_net.state, feed_dict={self.main_net.state: batch_next_state})
+        # Q_value_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+        Q_value_next = self.sess.run(self.target_net.Q, feed_dict={self.target_net.state: batch_next_state})
+        Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_value_next, axis=1)
 
-        # done_multiplier = 1 - batch_done
-        # Q_target = batch_reward + batch_done * self.config.gamma * np.max(Q_next, axis=1)
+        self.sess.run(self.apply_gradients, feed_dict={
+            self.main_net.state: batch_state,
+            self.main_net.action: batch_action,
+            self.main_net.Q_target: Q_target,
+        })
         return
 
 
@@ -157,15 +163,12 @@ class DQNTrainer(object):
         o_t = self.env.reset()
         o_t = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
         s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
-        print(s_t.shape)
         while not self.stop_requested and self.agent.global_t < self.config.max_time_step:
             self.env.render()
             action = self.agent.pickAction(s_t, reward=0.0, use_epsilon_greedy=True)
             o_t1, reward, done, info = self.env.step(action)
             o_t1 = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
-            print(o_t1.shape)
-            s_t1 = np.concatenate([s_t[3 if config.use_rgb else 1:], o_t1], axis=2)
-            print(s_t1.shape)
+            s_t1 = np.concatenate([s_t[:, :, 3 if config.use_rgb else 1:], o_t1], axis=2)
             if done:
                 o_t1 = self.env.reset()
                 o_t1 = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
@@ -173,8 +176,6 @@ class DQNTrainer(object):
 
             self.agent.perceive(s_t, action, reward, s_t1, done)
             s_t = s_t1
-            if self.agent.global_t > 100:
-                return
         return
 
     def signal_handler(self, signal_, frame_):
@@ -209,19 +210,19 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_string('save_dir', 'tmp_dqn', 'save models and logs')
     tf.app.flags.DEFINE_boolean('use_gpu', False, 'use gpu or cpu to train')
     tf.app.flags.DEFINE_integer('max_time_step', 10 * 10 ** 7, 'max steps to train')
-    tf.app.flags.DEFINE_integer('replay_size', 1000000, 'the size of replay buffer')
+    tf.app.flags.DEFINE_integer('replay_size', 1 * 10 ** 5, 'the size of replay buffer')
 
-    tf.app.flags.DEFINE_boolean('use_rgb', True, 'whether use rgb or gray image')
+    tf.app.flags.DEFINE_boolean('use_rgb', False, 'whether use rgb or gray image')
     tf.app.flags.DEFINE_integer('state_dim', 84, 'the width and height of state')
     tf.app.flags.DEFINE_integer('state_chn', 4, 'the channel of state')
     # tf.app.flags.DEFINE_integer('action_dim', 5, 'the action size of game')
 
-    tf.app.flags.DEFINE_integer('epsilon_timestep', 1 * 10 ** 5, 'the step of epsilon greedy')
-    tf.app.flags.DEFINE_float('epsilon_hi', 0.8, 'maximum epsilon greedy')
+    tf.app.flags.DEFINE_integer('epsilon_timestep', 5 * 10 ** 5, 'the step of epsilon greedy')
+    tf.app.flags.DEFINE_float('epsilon_hi', 1.0, 'maximum epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_lo', 0.1, 'minimum epsilon greedy')
-    tf.app.flags.DEFINE_integer('batch_size', 2, 'batch_size')
+    tf.app.flags.DEFINE_integer('batch_size', 64, 'batch_size')
 
     tf.app.flags.DEFINE_float('gamma', 0.99, 'the discounted factor of reward')
-    tf.app.flags.DEFINE_float('alpha', 1e-3, 'learning rate')
+    tf.app.flags.DEFINE_float('alpha', 1e-4, 'learning rate')
     tf.app.flags.DEFINE_float('max_gradient', 10.0, 'maximum gradient when clipping gradients')
     tf.app.run()
