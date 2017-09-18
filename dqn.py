@@ -5,10 +5,15 @@ from __future__ import print_function
 import gym
 import numpy as np
 import tensorflow as tf
+import threading
+import signal
+import random
+from collections import deque
 
 from netutil import *
 from imgutil import *
 from base_network import BaseNetwork
+from base_agent import BaseAgent
 
 
 class Network(BaseNetwork):
@@ -57,60 +62,150 @@ class Network(BaseNetwork):
         return trainable_vars
 
 
-class DQN(object):
+class DQNAgent(BaseAgent):
 
     def __init__(self, config):
-        # env = gym.make('Enduro-v0')
+        BaseAgent.__init__(self)
+
         self.config = config
-        self.env = gym.make('Breakout-v0')
         sess_config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
         self.sess = tf.Session(config=sess_config)
 
-        action_dim = self.env.action_space.n
+        # create networks
         state_chn = config.state_chn * (3 if config.use_rgb else 1)
         input_shape = [config.state_dim, config.state_dim, state_chn]
         device = '/gpu:0' if config.use_gpu else '/cpu:0'
-
-        self.main_net = Network(input_shape, action_dim, 'main_net', device)
-        self.target_net = Network(input_shape, action_dim, 'targe_net', device)
+        self.main_net = Network(input_shape, config.action_dim, 'main_net', device)
+        self.target_net = Network(input_shape, config.action_dim, 'targe_net', device)
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
+        # create gradients operations
         optimizer = tf.train.RMSPropOptimizer(config.alpha, decay=0.99)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
         gradients_clipped = [tf.clip_by_norm(grad, config.max_gradient) for grad in gradients]
-
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
 
+        # initialize parameters
         self.sess.run(tf.global_variables_initializer())
+        self.saver = tf.train.Saver()
+        self.restore_session()
+
+        self.epsilon = self._anneal_epsilon(self.global_t)
+        self.replay_buffer = deque(maxlen=config.replay_size)
         return
 
-    def train(self):
+    def _anneal_epsilon(self, timestep):
+        config = self.config
+        span = float(config.epsilon_hi - config.epsilon_lo) / float(config.epsilon_timestep)
+        epsilon = config.epsilon_hi - span * min(timestep, config.epsilon_timestep)
+        return epsilon
 
-        self.env.reset()
-        # for _ in range(1000):
-        for _ in range(1):
+    def pickAction(self, state, reward, use_epsilon_greedy=True):
+        Q_value = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: [state]})
+        Q_value = Q_value[0]
+        action_index = 0
+        if random.random() <= self.epsilon:
+            action_index = random.randrange(self.config.action_dim)
+        else:
+            action_index = np.argmax(Q_value)
+        # max_q_value = np.max(Q_value)
+        return action_index
+
+    def perceive(self, state, action, reward, next_state, done):
+        self.global_t += 1
+        self.replay_buffer([state, action, reward, next_state, done])
+        if len(self.replay_buffer) > self.config.batch_size * 2:
+            self._update_weights()
+
+        if self.global_t % 100000 == 0:
+            self.backup_session()
+        return
+
+    def _update_weights(self):
+        minibatch = random.sample(self.replay_buffer, config.batch_size)
+        print(minibatch)
+        # batch_state = [t[0] for t in minibatch]
+        # batch_action = [t[1] for t in minibatch]
+        # batch_reward = [t[2] for t in minibatch]
+        # batch_next_state = [t[3] for t in minibatch]
+        # batch_done = [int(t[4]) for t in minibatch]
+
+        # Q_next = self.sess.run(self.main_net.state, feed_dict={self.main_net.state: batch_next_state})
+
+        # done_multiplier = 1 - batch_done
+        # Q_target = batch_reward + batch_done * self.config.gamma * np.max(Q_next, axis=1)
+        return
+
+
+class DQNTrainer(object):
+
+    def __init__(self, config):
+        # env = gym.make('Enduro-v0')
+        self.env = gym.make(config.env_name)
+        config.checkpoint_dir = config.save_dir + '/checkpoints'
+        config.log_dir = config.save_dir + '/logs'
+        config.action_dim = self.env.action_space.n
+
+        self.config = config
+        self.agent = DQNAgent(config)
+
+        self.stop_requested = False
+        return
+
+    def _train_function(self):
+        config = self.config
+        o_t = self.env.reset()
+        o_t = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
+        s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+        print(s_t.shape)
+        while not self.stop_requested and self.agent.global_t < self.config.max_time_step:
             self.env.render()
-            action = self.env.action_space.sample()
-            # print action
-            observation, reward, done, info = self.env.step(action)
-            im = scale_image(observation, gray=True)
-            im.save('1.png')
+            action = self.agent.pickAction(s_t, reward=0.0, use_epsilon_greedy=True)
+            o_t1, reward, done, info = self.env.step(action)
+            o_t1 = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
+            print(o_t1.shape)
+            s_t1 = np.concatenate([s_t[3 if config.use_rgb else 1:], o_t1], axis=2)
+            print(s_t1.shape)
             if done:
-                self.env.reset()
+                o_t1 = self.env.reset()
+                o_t1 = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
+                s_t1 = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+
+            self.agent.perceive(s_t, action, reward, s_t1, done)
+            s_t = s_t1
+            if self.agent.global_t > 100:
+                return
+        return
+
+    def signal_handler(self, signal_, frame_):
+        print('You pressed Ctrl+C !')
+        self.stop_requested = True
+        return
+
+    def run(self):
+        train_thread = threading.Thread(target=self._train_function)
+
+        signal.signal(signal.SIGINT, self.signal_handler)
+        train_thread.start()
+
+        print('Press Ctrl+C to stop')
+        signal.pause()
+        print('Now saving data....')
+        train_thread.join()
+        # backup(self.sess, self.saver, flags.checkpoint_dir, self.global_t)
         return
 
 
 def main(args):
     config = tf.app.flags.FLAGS
-    dqn = DQN(config)
-    # dqn.train()
-    # net = Network([84, 84, 4], 5, 'main', '/cpu:0')
-    # print net.vars
+    trainer = DQNTrainer(config)
+    trainer._train_function()
+    # trainer.run()
     return
 
 
 if __name__ == '__main__':
-    tf.app.flags.DEFINE_string('env_name', 'game', 'name')
+    tf.app.flags.DEFINE_string('env_name', 'Breakout-v0', 'the name of game to be trained')
     tf.app.flags.DEFINE_string('save_dir', 'tmp_dqn', 'save models and logs')
     tf.app.flags.DEFINE_boolean('use_gpu', False, 'use gpu or cpu to train')
     tf.app.flags.DEFINE_integer('max_time_step', 10 * 10 ** 7, 'max steps to train')
@@ -121,10 +216,10 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_integer('state_chn', 4, 'the channel of state')
     # tf.app.flags.DEFINE_integer('action_dim', 5, 'the action size of game')
 
-    tf.app.flags.DEFINE_integer('epsilon_time_step', 1 * 10 ** 5, 'the step of epsilon greedy')
+    tf.app.flags.DEFINE_integer('epsilon_timestep', 1 * 10 ** 5, 'the step of epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_hi', 0.8, 'maximum epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_lo', 0.1, 'minimum epsilon greedy')
-    tf.app.flags.DEFINE_integer('batch_size', 128, 'batch_size')
+    tf.app.flags.DEFINE_integer('batch_size', 2, 'batch_size')
 
     tf.app.flags.DEFINE_float('gamma', 0.99, 'the discounted factor of reward')
     tf.app.flags.DEFINE_float('alpha', 1e-3, 'learning rate')
