@@ -181,7 +181,9 @@ class DQNTrainer(object):
 
             self.agent.perceive(s_t, action, reward, s_t1, done)
             s_t = s_t1
-            print ('global_t=%d / action_id=%d reward=%.2f ' % (self.agent.global_t, action, reward))
+            if self.agent.global_t % 100 == 0 or reward > 0.0:
+                print ('global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f'
+                       % (self.agent.global_t, action, reward, self.agent.epsilon))
         return
 
     def signal_handler(self, signal_, frame_):
@@ -228,7 +230,7 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_integer('epsilon_timestep', 5 * 10 ** 5, 'the step of epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_hi', 1.0, 'maximum epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_lo', 0.1, 'minimum epsilon greedy')
-    tf.app.flags.DEFINE_integer('batch_size', 64, 'batch_size')
+    tf.app.flags.DEFINE_integer('batch_size', 32, 'batch_size')
 
     tf.app.flags.DEFINE_float('gamma', 0.99, 'the discounted factor of reward')
     tf.app.flags.DEFINE_float('alpha', 1e-4, 'learning rate')
