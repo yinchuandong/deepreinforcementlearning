@@ -172,12 +172,12 @@ class DQNTrainer(object):
             self.env.render()
             action = self.agent.pickAction(s_t, reward=0.0, use_epsilon_greedy=True)
             o_t1, reward, done, info = self.env.step(action)
-            o_t1 = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
+            o_t1 = scale_image(o_t1, (config.state_dim, config.state_dim), config.use_rgb)
             s_t1 = np.concatenate([s_t[:, :, 3 if config.use_rgb else 1:], o_t1], axis=2)
             if done:
                 o_t1 = self.env.reset()
-                o_t1 = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
-                s_t1 = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+                o_t1 = scale_image(o_t1, (config.state_dim, config.state_dim), config.use_rgb)
+                s_t1 = np.concatenate([o_t1, o_t1, o_t1, o_t1], axis=2)
 
             self.agent.perceive(s_t, action, reward, s_t1, done)
             s_t = s_t1

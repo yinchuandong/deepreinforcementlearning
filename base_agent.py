@@ -30,6 +30,6 @@ class BaseAgent(object):
 
     def backup_session(self):
         if not os.path.exists(self.config.checkpoint_dir):
-            os.mkdir(self.config.checkpoint_dir)
+            os.makedirs(self.config.checkpoint_dir)
         self.saver.save(self.sess, self.config.checkpoint_dir + '/' + 'checkpoint', global_step=self.global_t)
         return
