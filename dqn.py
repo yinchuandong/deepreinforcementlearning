@@ -115,6 +115,7 @@ class DQNAgent(BaseAgent):
 
     def perceive(self, state, action, reward, next_state, done):
         self.global_t += 1
+        self._anneal_epsilon(self.global_t)
         self.replay_buffer.append([state, action, reward, next_state, done])
         if len(self.replay_buffer) > self.config.batch_size * 2:
             self._update_weights()
