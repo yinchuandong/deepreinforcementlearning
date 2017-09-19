@@ -29,7 +29,7 @@ class Network(BaseNetwork):
         return
 
     def _create_network(self):
-        with tf.device(self._device), tf.variable_scope(self._scope) as scope:
+        with tf.device(self._device), tf.variable_scope(self._scope):
             self.state = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name='state')
 
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 16], name='conv1')
@@ -87,6 +87,10 @@ class DQNAgent(BaseAgent):
         gradients_clipped = [tf.clip_by_norm(grad, config.max_gradient) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
 
+        # summary
+        self.merged_summary = tf.summary.merge_all()
+        self.train_summary_writer = tf.summary.FileWriter(config.log_dir + '/train', self.sess.graph)
+
         # initialize parameters
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
@@ -115,7 +119,7 @@ class DQNAgent(BaseAgent):
 
     def perceive(self, state, action, reward, next_state, done):
         self.global_t += 1
-        self._anneal_epsilon(self.global_t)
+        self.epsilon = self._anneal_epsilon(self.global_t)
         self.replay_buffer.append([state, action, reward, next_state, done])
         if len(self.replay_buffer) > self.config.batch_size * 2:
             self._update_weights()
@@ -138,7 +142,7 @@ class DQNAgent(BaseAgent):
             Q_value_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
         Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_value_next, axis=1)
 
-        self.sess.run(self.apply_gradients, feed_dict={
+        self.sess.run([self.apply_gradients, self.merged_summary], feed_dict={
             self.main_net.state: batch_state,
             self.main_net.action: batch_action,
             self.main_net.Q_target: Q_target,
@@ -228,7 +232,7 @@ if __name__ == '__main__':
     tf.app.flags.DEFINE_integer('state_chn', 4, 'the channel of state')
     # tf.app.flags.DEFINE_integer('action_dim', 5, 'the action size of game')
 
-    tf.app.flags.DEFINE_integer('epsilon_timestep', 5 * 10 ** 5, 'the step of epsilon greedy')
+    tf.app.flags.DEFINE_integer('epsilon_timestep', 1 * 10 ** 5, 'the step of epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_hi', 1.0, 'maximum epsilon greedy')
     tf.app.flags.DEFINE_float('epsilon_lo', 0.1, 'minimum epsilon greedy')
     tf.app.flags.DEFINE_integer('batch_size', 32, 'batch_size')
