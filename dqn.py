@@ -114,8 +114,8 @@ class DQNAgent(BaseAgent):
             action_index = random.randrange(self.config.action_dim)
         else:
             action_index = np.argmax(Q_value)
-        # max_q_value = np.max(Q_value)
-        return action_index
+        max_q_value = np.max(Q_value)
+        return action_index, max_q_value
 
     def perceive(self, state, action, reward, next_state, done):
         self.global_t += 1
@@ -169,15 +169,17 @@ class DQNTrainer(object):
         return
 
     def _train_function(self):
+        # from PIL import Image
         config = self.config
         o_t = self.env.reset()
         o_t = scale_image(o_t, (config.state_dim, config.state_dim), config.use_rgb)
         s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
         while not self.stop_requested and self.agent.global_t < self.config.max_time_step:
             self.env.render()
-            action = self.agent.pickAction(s_t, reward=0.0, use_epsilon_greedy=True)
+            action, action_q = self.agent.pickAction(s_t, reward=0.0, use_epsilon_greedy=True)
             o_t1, reward, done, info = self.env.step(action)
             o_t1 = scale_image(o_t1, (config.state_dim, config.state_dim), config.use_rgb)
+            # Image.fromarray(np.reshape(o_t1, [84, 84])).save('tmp/%d.png' % (self.agent.global_t))
             s_t1 = np.concatenate([s_t[:, :, 3 if config.use_rgb else 1:], o_t1], axis=2)
             if done:
                 o_t1 = self.env.reset()
@@ -187,8 +189,8 @@ class DQNTrainer(object):
             self.agent.perceive(s_t, action, reward, s_t1, done)
             s_t = s_t1
             if self.agent.global_t % 100 == 0 or reward > 0.0:
-                print ('global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f'
-                       % (self.agent.global_t, action, reward, self.agent.epsilon))
+                print ('global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f'
+                       % (self.agent.global_t, action, reward, self.agent.epsilon, action_q))
         return
 
     def signal_handler(self, signal_, frame_):
