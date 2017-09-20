@@ -46,12 +46,12 @@ class Network(BaseNetwork):
             W_fc2, b_fc2 = fc_variable([64, self._action_dim], name='fc2')
             h_fc2 = tf.matmul(h_fc1, W_fc2) + b_fc2
             self.Q = h_fc2
+            self.Q_a = tf.argmax(self.Q, axis=1)
         return
 
-    def _prepare_loss(self):
         with tf.name_scope(self._scope):
             self.action = tf.placeholder(tf.int64, shape=[None], name='action')
-            self.Q_target = tf.placeholder(tf.float32, shape=[None], name='Q_targe')
+            self.Q_target = tf.placeholder(tf.float32, shape=[None], name='Q_target')
 
             action_onehot = tf.one_hot(self.action, self._action_dim)
             Q_value = tf.reduce_sum(self.Q * action_onehot, axis=1)
@@ -137,10 +137,13 @@ class DQNAgent(BaseAgent):
         batch_done = np.array([int(t[4]) for t in minibatch])
 
         if self.config.use_double_dqn:
-            Q_value_next = self.sess.run(self.target_net.Q, feed_dict={self.target_net.state: batch_next_state})
+            Q_a_next = self.sess.run(self.target_net.Q_a, feed_dict={self.target_net.state: batch_next_state})
+            Q_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+            double_q = Q_next[range(self.config.batch_size), Q_a_next]
+            Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * double_q
         else:
-            Q_value_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
-        Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_value_next, axis=1)
+            Q_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+            Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_next, axis=1)
 
         self.sess.run([self.apply_gradients, self.merged_summary], feed_dict={
             self.main_net.state: batch_state,
