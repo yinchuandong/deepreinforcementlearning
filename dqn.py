@@ -49,6 +49,7 @@ class Network(BaseNetwork):
             self.Q_a = tf.argmax(self.Q, axis=1)
         return
 
+    def _prepare_loss():
         with tf.name_scope(self._scope):
             self.action = tf.placeholder(tf.int64, shape=[None], name='action')
             self.Q_target = tf.placeholder(tf.float32, shape=[None], name='Q_target')
