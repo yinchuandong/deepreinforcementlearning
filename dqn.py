@@ -107,7 +107,7 @@ class DQNAgent(BaseAgent):
         epsilon = config.epsilon_hi - span * min(timestep, config.epsilon_timestep)
         return epsilon
 
-    def pickAction(self, state, reward, use_epsilon_greedy=True):
+    def pick_action(self, state, reward, use_epsilon_greedy=True):
         Q_value = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: [state]})
         Q_value = Q_value[0]
         action_index = 0
@@ -180,7 +180,7 @@ class DQNTrainer(object):
         s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
         while not self.stop_requested and self.agent.global_t < self.config.max_time_step:
             self.env.render()
-            action, action_q = self.agent.pickAction(s_t, reward=0.0, use_epsilon_greedy=True)
+            action, action_q = self.agent.pick_action(s_t, reward=0.0, use_epsilon_greedy=True)
             o_t1, reward, done, info = self.env.step(action)
             o_t1 = scale_image(o_t1, (config.state_dim, config.state_dim), config.use_rgb)
             # Image.fromarray(np.reshape(o_t1, [84, 84])).save('tmp/%d.png' % (self.agent.global_t))
