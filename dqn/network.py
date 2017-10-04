@@ -50,11 +50,10 @@ class Network(BaseNetwork):
             action_onehot = tf.one_hot(self.action, self._action_dim)
             Q_value = tf.reduce_sum(self.Q * action_onehot, axis=1)
             self.loss = tf.reduce_mean(tf.square(self.Q_target - Q_value))
+
         return
 
     @property
     def vars(self):
         trainable_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self._scope)
         return trainable_vars
-
-

@@ -8,25 +8,24 @@ import random
 from collections import deque
 
 from base.base_agent import BaseAgent
-from network_util import restore_session, backup_session
+from util.network_util import restore_session, backup_session
+from util.feature_util import process_image
 from .network import Network
 
 
 class Agent(BaseAgent):
 
-    def __init__(self, config):
+    def __init__(self, config, sess):
         BaseAgent.__init__(self)
 
         self.config = config
-        sess_config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
-        self.sess = tf.Session(config=sess_config)
 
         # create networks
         state_chn = config.state_chn * (3 if config.use_rgb else 1)
         input_shape = [config.state_dim, config.state_dim, state_chn]
         device = '/gpu:0' if config.use_gpu else '/cpu:0'
         self.main_net = Network(input_shape, config.action_dim, 'main_net', device)
-        self.target_net = Network(input_shape, config.action_dim, 'targe_net', device)
+        self.target_net = Network(input_shape, config.action_dim, 'target_net', device)
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
         # create gradients operations
@@ -35,17 +34,22 @@ class Agent(BaseAgent):
         gradients_clipped = [tf.clip_by_norm(grad, config.max_gradient) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
 
-        # summary
-        self.merged_summary = tf.summary.merge_all()
-        self.train_summary_writer = tf.summary.FileWriter(config.log_dir + '/train', self.sess.graph)
+        self.replay_buffer = deque(maxlen=config.replay_size)
+        self.stop_requested = False
 
         # initialize parameters
-        self.sess.run(tf.global_variables_initializer())
-        self.saver = tf.train.Saver()
-        self.restore_session()
+        self.add_train_summary(sess)
+        sess.run(tf.global_variables_initializer())
 
+        self.saver = tf.train.Saver()
+        self.global_t = restore_session(self.saver, sess, config.model_dir)
         self.epsilon = self._anneal_epsilon(self.global_t)
-        self.replay_buffer = deque(maxlen=config.replay_size)
+        return
+
+    def add_train_summary(self, sess):
+        tf.summary.scalar("loss", self.main_net.loss)
+        self.train_summary = tf.summary.merge_all()
+        self.train_summary_writer = tf.summary.FileWriter(self.config.log_dir + "/train", sess.graph)
         return
 
     def _anneal_epsilon(self, timestep):
@@ -54,8 +58,8 @@ class Agent(BaseAgent):
         epsilon = config.epsilon_hi - span * min(timestep, config.epsilon_timestep)
         return epsilon
 
-    def pick_action(self, state, reward, use_epsilon_greedy=True):
-        Q_value = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: [state]})
+    def pick_action(self, sess, state, reward, use_epsilon_greedy=True):
+        Q_value = sess.run(self.main_net.Q, feed_dict={self.main_net.state: [state]})
         Q_value = Q_value[0]
         action_index = 0
         if random.random() <= self.epsilon:
@@ -65,18 +69,15 @@ class Agent(BaseAgent):
         max_q_value = np.max(Q_value)
         return action_index, max_q_value
 
-    def perceive(self, state, action, reward, next_state, done):
+    def perceive(self, sess, state, action, reward, next_state, done):
         self.global_t += 1
         self.epsilon = self._anneal_epsilon(self.global_t)
         self.replay_buffer.append([state, action, reward, next_state, done])
         if len(self.replay_buffer) > self.config.batch_size * 2:
-            self._update_weights()
-
-        if self.global_t % 100000 == 0:
-            self.backup_session()
+            self._update_weights(sess)
         return
 
-    def _update_weights(self):
+    def _update_weights(self, sess):
         minibatch = random.sample(self.replay_buffer, self.config.batch_size)
         batch_state = [t[0] for t in minibatch]
         batch_action = [t[1] for t in minibatch]
@@ -85,22 +86,55 @@ class Agent(BaseAgent):
         batch_done = np.array([int(t[4]) for t in minibatch])
 
         if self.config.use_double_dqn:
-            Q_a_next = self.sess.run(self.target_net.Q_a, feed_dict={self.target_net.state: batch_next_state})
-            Q_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+            Q_a_next = sess.run(self.target_net.Q_a, feed_dict={self.target_net.state: batch_next_state})
+            Q_next = sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
             double_q = Q_next[range(self.config.batch_size), Q_a_next]
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * double_q
         else:
-            Q_next = self.sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+            Q_next = sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_next, axis=1)
 
-        self.sess.run([self.apply_gradients, self.merged_summary], feed_dict={
+        sess.run([self.apply_gradients, self.train_summary], feed_dict={
             self.main_net.state: batch_state,
             self.main_net.action: batch_action,
             self.main_net.Q_target: Q_target,
         })
 
         if self.config.use_double_dqn:
-            self.sess.run(self.sync_target_net)
+            sess.run(self.sync_target_net)
         return
 
+    def train(self, saver, sess, env):
+        cfg = self.config
 
+        self.global_t = restore_session(saver, sess, cfg.model_dir)
+
+        # summary
+        self.add_train_summary(sess)
+
+        self.epsilon = self._anneal_epsilon(self.global_t)
+
+        o_t = env.reset()
+        o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+        s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+        while not self.stop_requested and self.global_t < cfg.max_train_step:
+            env.render()
+            action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+            o_t1, reward, done, info = env.step(action)
+
+            o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+            # Image.fromarray(np.reshape(o_t1, [84, 84])).save('tmp/%d.png' % (self.global_t))
+            s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
+
+            if done:
+                o_t1 = env.reset()
+                o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+                s_t1 = np.concatenate([o_t1, o_t1, o_t1, o_t1], axis=2)
+
+            self.perceive(sess, s_t, action, reward, s_t1, done)
+            s_t = s_t1
+            if self.global_t % 100 == 0 or reward > 0.0:
+                print('global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f'
+                      % (self.global_t, action, reward, self.epsilon, action_q))
+        backup_session(saver, sess, cfg.model_dir, self.global_t)
+        return

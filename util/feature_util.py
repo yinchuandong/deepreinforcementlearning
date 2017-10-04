@@ -16,7 +16,6 @@ def process_image(img_array, scale_size=(84, 110), crop_area=None, use_rgb=False
     img = Image.fromarray(img_array)
     img = img.resize(scale_size, Image.ANTIALIAS)
     if crop_area is not None:
-        print(crop_area)
         img = img.crop(crop_area)
     if not use_rgb:
         img = img.convert('L')
