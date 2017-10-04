@@ -69,12 +69,10 @@ class Agent(BaseAgent):
         max_q_value = np.max(Q_value)
         return action_index, max_q_value
 
-    def perceive(self, sess, state, action, reward, next_state, done):
+    def _perceive(self, sess, state, action, reward, next_state, done):
         self.global_t += 1
         self.epsilon = self._anneal_epsilon(self.global_t)
         self.replay_buffer.append([state, action, reward, next_state, done])
-        if len(self.replay_buffer) > self.config.batch_size * 2:
-            self._update_weights(sess)
         return
 
     def _update_weights(self, sess):
@@ -123,6 +121,8 @@ class Agent(BaseAgent):
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 env.render()
                 local_t += 1
+                if len(self.replay_buffer) > self.config.batch_size * 2:
+                    self._update_weights(sess)
                 # frame skipping
                 if local_t % cfg.frame_skip != 0 and last_action is not None:
                     env.step(last_action)
@@ -133,7 +133,8 @@ class Agent(BaseAgent):
                 o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
-                self.perceive(sess, s_t, action, reward, s_t1, done)
+
+                self._perceive(sess, s_t, action, reward, s_t1, done)
 
                 s_t = s_t1
                 last_action = action
