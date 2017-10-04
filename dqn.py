@@ -8,10 +8,9 @@ import signal
 import gym
 
 from dqn.agent import Agent
-from dqn.trainer import Trainer
 
 
-class DQNTrainer(object):
+class Application(object):
 
     def __init__(self, config):
         # env = gym.make("Enduro-v0")
@@ -37,10 +36,8 @@ class DQNTrainer(object):
         return
 
     def train(self):
-        # self.agent = Agent(self.config)
         with self.graph.as_default():
             self.agent.train(self.saver, self.sess, self.env)
-        # self.agent.train(self.saver, self.sess, self.env)
         return
 
     def run(self):
@@ -56,11 +53,9 @@ class DQNTrainer(object):
 
 def main(args):
     config = tf.app.flags.FLAGS
-    # trainer = DQNTrainer(config)
-    trainer = Trainer(config)
-    trainer.run()
+    app = Application(config)
+    app.run()
     return
-
 
 
 if __name__ == "__main__":
@@ -68,11 +63,13 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_string("save_dir", "tmp_dqn", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", False, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
-    tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
+    tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 6, "the size of replay buffer")
 
     tf.app.flags.DEFINE_boolean("use_double_dqn", False, "whether use target net to estimate Q_target")
+    tf.app.flags.DEFINE_integer("net_update_step", 1000, "the update step of target net")
     tf.app.flags.DEFINE_boolean("use_duel_dqn", False, "whether use duelling channel")
     tf.app.flags.DEFINE_boolean("use_rgb", False, "whether use rgb or gray image")
+    tf.app.flags.DEFINE_integer("frame_skip", 4, "the number of skipping frames")
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
     tf.app.flags.DEFINE_integer("state_chn", 4, "the channel of state")
     # tf.app.flags.DEFINE_integer("action_dim", 5, "the action size of game")
@@ -83,6 +80,6 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_integer("batch_size", 32, "batch_size")
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
-    tf.app.flags.DEFINE_float("alpha", 1e-4, "learning rate")
+    tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate")
     tf.app.flags.DEFINE_float("max_gradient", 10.0, "maximum gradient when clipping gradients")
     tf.app.run()

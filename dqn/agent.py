@@ -15,7 +15,7 @@ from .network import Network
 
 class Agent(BaseAgent):
 
-    def __init__(self, config, sess):
+    def __init__(self, config):
         BaseAgent.__init__(self)
 
         self.config = config
@@ -23,13 +23,13 @@ class Agent(BaseAgent):
         # create networks
         state_chn = config.state_chn * (3 if config.use_rgb else 1)
         input_shape = [config.state_dim, config.state_dim, state_chn]
-        device = '/gpu:0' if config.use_gpu else '/cpu:0'
-        self.main_net = Network(input_shape, config.action_dim, 'main_net', device)
-        self.target_net = Network(input_shape, config.action_dim, 'target_net', device)
+        device = "/gpu:0" if config.use_gpu else "/cpu:0"
+        self.main_net = Network(input_shape, config.action_dim, "main_net", device)
+        self.target_net = Network(input_shape, config.action_dim, "target_net", device)
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
         # create gradients operations
-        optimizer = tf.train.RMSPropOptimizer(config.alpha, decay=0.99)
+        optimizer = tf.train.RMSPropOptimizer(config.lr, decay=0.99)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
         gradients_clipped = [tf.clip_by_norm(grad, config.max_gradient) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
@@ -38,12 +38,12 @@ class Agent(BaseAgent):
         self.stop_requested = False
 
         # initialize parameters
-        self.add_train_summary(sess)
-        sess.run(tf.global_variables_initializer())
+        # self.add_train_summary(sess)
+        # sess.run(tf.global_variables_initializer())
 
-        self.saver = tf.train.Saver()
-        self.global_t = restore_session(self.saver, sess, config.model_dir)
-        self.epsilon = self._anneal_epsilon(self.global_t)
+        # self.saver = tf.train.Saver()
+        # self.global_t = restore_session(self.saver, sess, config.model_dir)
+        # self.epsilon = self._anneal_epsilon(self.global_t)
         return
 
     def add_train_summary(self, sess):
@@ -100,41 +100,46 @@ class Agent(BaseAgent):
             self.main_net.Q_target: Q_target,
         })
 
-        if self.config.use_double_dqn:
+        if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
             sess.run(self.sync_target_net)
         return
 
     def train(self, saver, sess, env):
         cfg = self.config
-
-        self.global_t = restore_session(saver, sess, cfg.model_dir)
-
         # summary
         self.add_train_summary(sess)
-
+        self.global_t = restore_session(saver, sess, cfg.model_dir)
         self.epsilon = self._anneal_epsilon(self.global_t)
 
-        o_t = env.reset()
-        o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
-        s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
         while not self.stop_requested and self.global_t < cfg.max_train_step:
-            env.render()
-            action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
-            o_t1, reward, done, info = env.step(action)
+            print("-------new epoch-----------------")
+            o_t = env.reset()
+            o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+            s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+            done = False
+            last_action = None
 
-            o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
-            # Image.fromarray(np.reshape(o_t1, [84, 84])).save('tmp/%d.png' % (self.global_t))
-            s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
+            local_t = 0
+            while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
+                env.render()
+                local_t += 1
+                # frame skipping
+                if local_t % cfg.frame_skip != 0 and last_action is not None:
+                    env.step(last_action)
+                    continue
 
-            if done:
-                o_t1 = env.reset()
+                action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+                o_t1, reward, done, info = env.step(action)
                 o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
-                s_t1 = np.concatenate([o_t1, o_t1, o_t1, o_t1], axis=2)
+                # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
+                s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
+                self.perceive(sess, s_t, action, reward, s_t1, done)
 
-            self.perceive(sess, s_t, action, reward, s_t1, done)
-            s_t = s_t1
-            if self.global_t % 100 == 0 or reward > 0.0:
-                print('global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f'
-                      % (self.global_t, action, reward, self.epsilon, action_q))
+                s_t = s_t1
+                last_action = action
+                if self.global_t % 100 == 0 or reward > 0.0:
+                    print("global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f"
+                          % (self.global_t, action, reward, self.epsilon, action_q))
+
         backup_session(saver, sess, cfg.model_dir, self.global_t)
         return
