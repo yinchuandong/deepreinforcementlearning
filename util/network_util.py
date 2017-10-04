@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import numpy as np
 import tensorflow as tf
 
@@ -117,3 +118,38 @@ def variable_summaries(var, name=None):
     return
 
 
+def restore_session(saver, sess, model_dir):
+    """ restore the session from given model_dir
+    Args:
+        saver: tf.train.Saver,
+        sess: tf.Session,
+        model_dir: string, the path to save model
+    Returns:
+        global_t: return t
+    """
+    checkpoint = tf.train.get_checkpoint_state(model_dir)
+    if checkpoint and checkpoint.model_checkpoint_path:
+        saver.restore(sess, checkpoint.model_checkpoint_path)
+        print ('checkpoint loaded:', checkpoint.model_checkpoint_path)
+        tokens = checkpoint.model_checkpoint_path.split('-')
+        # set global step
+        global_t = int(tokens[1])
+        print ('>>> global step set: ', global_t)
+    else:
+        print ('Could not find old checkpoint')
+        global_t = 0
+    return global_t
+
+
+def backup_session(saver, sess, model_dir, global_t):
+    """ backup the session to given model_dir
+    Args:
+        saver: tf.train.Saver,
+        sess: tf.Session,
+        model_dir: string, the path to save model
+        global_t: int, the number of timestep
+    """
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    saver.save(sess, model_dir + '/' + 'checkpoint', global_step=global_t)
+    return

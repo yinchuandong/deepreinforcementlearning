@@ -7,8 +7,8 @@ import tensorflow as tf
 import random
 from collections import deque
 
-from util.imgutil import *
 from base.base_agent import BaseAgent
+from network_util import restore_session, backup_session
 from .network import Network
 
 
