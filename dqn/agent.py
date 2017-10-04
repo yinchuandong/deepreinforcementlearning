@@ -121,20 +121,20 @@ class Agent(BaseAgent):
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 env.render()
                 local_t += 1
-                if len(self.replay_buffer) > self.config.batch_size * 2:
-                    self._update_weights(sess)
                 # frame skipping
                 if local_t % cfg.frame_skip != 0 and last_action is not None:
-                    env.step(last_action)
-                    continue
-
-                action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
-                o_t1, reward, done, info = env.step(action)
+                    action_q = -1  # skipping
+                    o_t1, reward, done, info = env.step(last_action)
+                else:
+                    action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+                    o_t1, reward, done, info = env.step(action)
                 o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
                 self._perceive(sess, s_t, action, reward, s_t1, done)
+                if len(self.replay_buffer) > self.config.batch_size * 2:
+                    self._update_weights(sess)
 
                 s_t = s_t1
                 last_action = action
