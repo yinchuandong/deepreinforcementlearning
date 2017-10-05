@@ -130,6 +130,8 @@ class Agent(BaseAgent):
                 self._perceive(sess, s_t, action, reward, s_t1, done)
                 if len(self.replay_buffer) > self.config.batch_size * 2:
                     self._update_weights(sess)
+                if self.global_t % 100000 == 0:
+                    backup_session(saver, sess, cfg.model_dir, self.global_t)
 
                 s_t = s_t1
                 last_action = action
