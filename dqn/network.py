@@ -5,7 +5,7 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 
-from util.netutil import *
+from util.network_util import *
 from base.base_network import BaseNetwork
 
 
