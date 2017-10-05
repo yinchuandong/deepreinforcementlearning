@@ -9,7 +9,7 @@ from collections import deque
 
 from base.base_agent import BaseAgent
 from util.network_util import restore_session, backup_session
-from util.feature_util import process_image
+from util.feature_util import process_image, normalize
 from .network import Network
 
 
@@ -29,7 +29,7 @@ class Agent(BaseAgent):
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
         # create gradients operations
-        optimizer = tf.train.RMSPropOptimizer(config.lr, decay=0.99)
+        optimizer = tf.train.RMSPropOptimizer(config.lr, decay=config.lr_decay)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
         gradients_clipped = [tf.clip_by_norm(grad, config.max_gradient) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
@@ -37,13 +37,6 @@ class Agent(BaseAgent):
         self.replay_buffer = deque(maxlen=config.replay_size)
         self.stop_requested = False
 
-        # initialize parameters
-        # self.add_train_summary(sess)
-        # sess.run(tf.global_variables_initializer())
-
-        # self.saver = tf.train.Saver()
-        # self.global_t = restore_session(self.saver, sess, config.model_dir)
-        # self.epsilon = self._anneal_epsilon(self.global_t)
         return
 
     def add_train_summary(self, sess):
@@ -98,9 +91,6 @@ class Agent(BaseAgent):
             self.main_net.Q_target: Q_target,
         })
 
-        if self.global_t % 10 == 0:
-            self.train_summary_writer.add_summary(summary, self.global_t)
-
         if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
             sess.run(self.sync_target_net)
         return
@@ -116,6 +106,7 @@ class Agent(BaseAgent):
             print("-------new epoch-----------------")
             o_t = env.reset()
             o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+            o_t = normalize(o_t)
             s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
             done = False
             last_action = None
@@ -132,6 +123,7 @@ class Agent(BaseAgent):
                     action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
                     o_t1, reward, done, info = env.step(action)
                 o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+                o_t1 = normalize(o_t1)
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 

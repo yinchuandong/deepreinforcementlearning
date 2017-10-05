@@ -54,7 +54,8 @@ class Application(object):
 def main(args):
     config = tf.app.flags.FLAGS
     app = Application(config)
-    app.run()
+    app.train()
+    # app.run()
     return
 
 
@@ -81,5 +82,6 @@ if __name__ == "__main__":
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
     tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate")
+    tf.app.flags.DEFINE_float("lr_decay", 0.99, "learning rate decay")
     tf.app.flags.DEFINE_float("max_gradient", 10.0, "maximum gradient when clipping gradients")
     tf.app.run()

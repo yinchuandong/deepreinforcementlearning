@@ -22,3 +22,16 @@ def process_image(img_array, scale_size=(84, 110), crop_area=None, use_rgb=False
         return np.reshape(img, (img.size[1], img.size[0], 1))
     else:
         return np.array(img)
+
+
+def normalize(img):
+    """ normalize a image to [-1, 1]
+    Args:
+        img: (np.array), shape=[x,x,x]
+    Returns:
+        np.array
+    """
+    img = img / 255.0
+    img_mean = np.mean(img)
+    img = img - img_mean
+    return img
