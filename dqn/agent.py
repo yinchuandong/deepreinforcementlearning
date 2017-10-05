@@ -92,11 +92,14 @@ class Agent(BaseAgent):
             Q_next = sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_next, axis=1)
 
-        sess.run([self.apply_gradients, self.train_summary], feed_dict={
+        _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
             self.main_net.state: batch_state,
             self.main_net.action: batch_action,
             self.main_net.Q_target: Q_target,
         })
+
+        if self.global_t % 10 == 0:
+            self.train_summary_writer.add_summary(summary, self.global_t)
 
         if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
             sess.run(self.sync_target_net)
