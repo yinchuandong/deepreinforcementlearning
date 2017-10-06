@@ -52,7 +52,9 @@ class Agent(BaseAgent):
         return epsilon
 
     def pick_action(self, sess, state, reward, use_epsilon_greedy=True):
-        Q_value = sess.run(self.main_net.Q, feed_dict={self.main_net.state: [state]})
+        Q_value = sess.run(self.main_net.Q, feed_dict={
+            self.main_net.state: [state], self.main_net.dropout: 1.0
+        })
         Q_value = Q_value[0]
         action_index = 0
         if random.random() <= self.epsilon:
@@ -77,18 +79,25 @@ class Agent(BaseAgent):
         batch_done = np.array([int(t[4]) for t in minibatch])
 
         if self.config.use_double_dqn:
-            Q_a_next = sess.run(self.target_net.Q_a, feed_dict={self.target_net.state: batch_next_state})
-            Q_next = sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+            Q_a_next = sess.run(self.target_net.Q_a, feed_dict={
+                self.target_net.state: batch_next_state, self.target_net.dropout: 1.0
+            })
+            Q_next = sess.run(self.main_net.Q, feed_dict={
+                self.main_net.state: batch_next_state, self.main_net.dropout: 1.0
+            })
             double_q = Q_next[range(self.config.batch_size), Q_a_next]
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * double_q
         else:
-            Q_next = sess.run(self.main_net.Q, feed_dict={self.main_net.state: batch_next_state})
+            Q_next = sess.run(self.main_net.Q, feed_dict={
+                self.main_net.state: batch_next_state, self.main_net.dropout: 1.0
+            })
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_next, axis=1)
 
         _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
             self.main_net.state: batch_state,
             self.main_net.action: batch_action,
             self.main_net.Q_target: Q_target,
+            self.main_net.dropout: 0.5
         })
 
         if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
@@ -109,19 +118,21 @@ class Agent(BaseAgent):
             o_t = normalize(o_t)
             s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
             done = False
-            last_action = None
+            # last_action = None
 
             local_t = 0
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 env.render()
                 local_t += 1
                 # frame skipping
-                if local_t % cfg.frame_skip != 0 and last_action is not None:
-                    action_q = -1  # skipping
-                    o_t1, reward, done, info = env.step(last_action)
-                else:
-                    action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
-                    o_t1, reward, done, info = env.step(action)
+                # if local_t % cfg.frame_skip != 0 and last_action is not None:
+                #     action_q = -1  # skipping
+                #     o_t1, reward, done, info = env.step(last_action)
+                # else:
+                #     action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+                #     o_t1, reward, done, info = env.step(action)
+                action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+                o_t1, reward, done, info = env.step(action)
                 o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
                 o_t1 = normalize(o_t1)
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
@@ -134,7 +145,7 @@ class Agent(BaseAgent):
                     backup_session(saver, sess, cfg.model_dir, self.global_t)
 
                 s_t = s_t1
-                last_action = action
+                # last_action = action
                 if self.global_t % 100 == 0 or reward > 0.0:
                     print("global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f"
                           % (self.global_t, action, reward, self.epsilon, action_q))
