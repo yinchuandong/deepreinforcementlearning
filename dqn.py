@@ -64,7 +64,7 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_string("save_dir", "tmp_dqn", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", False, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
-    tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 6, "the size of replay buffer")
+    tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
 
     tf.app.flags.DEFINE_boolean("use_double_dqn", False, "whether use target net to estimate Q_target")
     tf.app.flags.DEFINE_integer("net_update_step", 1000, "the update step of target net")
