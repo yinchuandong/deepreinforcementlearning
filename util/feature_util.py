@@ -32,6 +32,6 @@ def normalize(img):
         np.array
     """
     img = img / 255.0
-    img_mean = np.mean(img)
-    img = img - img_mean
+    # img_mean = np.mean(img)
+    # img = img - img_mean
     return img
