@@ -100,6 +100,9 @@ class Agent(BaseAgent):
             self.main_net.dropout: 0.5
         })
 
+        if self.global_t % 10 == 0:
+            self.train_summary_writer.add_summary(summary, self.global_t)
+
         if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
             sess.run(self.sync_target_net)
         return
