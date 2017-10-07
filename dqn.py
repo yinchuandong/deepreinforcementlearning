@@ -84,4 +84,5 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate")
     tf.app.flags.DEFINE_float("lr_decay", 0.99, "learning rate decay")
     tf.app.flags.DEFINE_float("max_gradient", 1.0, "maximum gradient when clipping gradients")
+    tf.app.flags.DEFINE_float("dropout", 0.5, "the keep prob of dropout")
     tf.app.run()

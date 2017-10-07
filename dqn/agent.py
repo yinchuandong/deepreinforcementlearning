@@ -97,7 +97,7 @@ class Agent(BaseAgent):
             self.main_net.state: batch_state,
             self.main_net.action: batch_action,
             self.main_net.Q_target: Q_target,
-            self.main_net.dropout: 0.5
+            self.main_net.dropout: self.config.dropout
         })
 
         if self.global_t % 10 == 0:
