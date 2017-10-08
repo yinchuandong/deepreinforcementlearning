@@ -102,6 +102,7 @@ class Agent(BaseAgent):
 
         if self.global_t % 10 == 0:
             self.train_summary_writer.add_summary(summary, self.global_t)
+            self.train_summary_writer.flush()
 
         if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
             sess.run(self.sync_target_net)
@@ -141,8 +142,14 @@ class Agent(BaseAgent):
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
+                # reward reshaping
+                if reward == 0.0:
+                    reward == 0.1
+                if done:
+                    reward = -1.0
+
                 self._perceive(sess, s_t, action, reward, s_t1, done)
-                if len(self.replay_buffer) > self.config.batch_size * 2:
+                if len(self.replay_buffer) > self.config.batch_size * 4:
                     self._update_weights(sess)
                 if self.global_t % 100000 == 0:
                     backup_session(saver, sess, cfg.model_dir, self.global_t)

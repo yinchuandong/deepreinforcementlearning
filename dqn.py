@@ -54,8 +54,8 @@ class Application(object):
 def main(args):
     config = tf.app.flags.FLAGS
     app = Application(config)
-    # app.train()
-    app.run()
+    app.train()
+    # app.run()
     return
 
 
