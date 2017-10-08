@@ -24,7 +24,7 @@ class Network(BaseNetwork):
     def _create_network(self):
         with tf.device(self._device), tf.variable_scope(self._scope):
             self.state = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name='state')
-            # self.dropout = tf.placeholder(tf.float32, shape=[], name='dropout')
+            self.dropout = tf.placeholder(tf.float32, shape=[], name='dropout')
 
             # state_dropout = tf.nn.dropout(self.state, self.dropout)
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 16], name='conv1')
