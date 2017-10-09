@@ -6,6 +6,8 @@ import tensorflow as tf
 import threading
 import signal
 import gym
+from ple.games.flappybird import FlappyBird
+from ple import PLE
 
 from dqn.agent import Agent
 
@@ -13,11 +15,18 @@ from dqn.agent import Agent
 class Application(object):
 
     def __init__(self, config):
-        # env = gym.make("Enduro-v0")
-        self.env = gym.make(config.env_name)
         config.model_dir = config.save_dir + "/models"
         config.log_dir = config.save_dir + "/logs"
-        config.action_dim = self.env.action_space.n
+
+        # atari game
+        # env = gym.make("Enduro-v0")
+        # self.env = gym.make(config.env_name)
+        # config.action_dim = self.env.action_space.n
+
+        # ple game
+        game = FlappyBird()
+        self.env = PLE(game, fps=30, display_screen=True)
+        config.action_dim = len(self.env.getActionSet())
 
         self.config = config
 
@@ -37,7 +46,7 @@ class Application(object):
 
     def train(self):
         with self.graph.as_default():
-            self.agent.train(self.saver, self.sess, self.env)
+            self.agent.train_ple(self.saver, self.sess, self.env)
         return
 
     def run(self):
@@ -54,8 +63,8 @@ class Application(object):
 def main(args):
     config = tf.app.flags.FLAGS
     app = Application(config)
-    app.train()
-    # app.run()
+    # app.train()
+    app.run()
     return
 
 

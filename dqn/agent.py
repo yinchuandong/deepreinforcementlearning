@@ -108,7 +108,55 @@ class Agent(BaseAgent):
             sess.run(self.sync_target_net)
         return
 
-    def train(self, saver, sess, env):
+    def train_ple(self, saver, sess, env):
+        cfg = self.config
+        # summary
+        self.add_train_summary(sess)
+        self.global_t = restore_session(saver, sess, cfg.model_dir)
+        self.epsilon = self._anneal_epsilon(self.global_t)
+
+        env.init()
+        while not self.stop_requested and self.global_t < cfg.max_train_step:
+            print("-------new epoch-----------------")
+            env.reset_game()
+            env.act(env.getActionSet()[0])
+            o_t = env.getScreenRGB()
+            o_t = process_image(o_t, (84, 84), None, cfg.use_rgb)
+            o_t = normalize(o_t)
+            s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+            done = False
+            # last_action = None
+
+            local_t = 0
+            while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
+                local_t += 1
+                action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+                reward = env.act(env.getActionSet()[action])
+                reward = np.clip(reward, -1.0, 1.0)
+                o_t1 = env.getScreenRGB()
+                done = env.game_over()
+
+                o_t1 = process_image(o_t1, (84, 84), None, cfg.use_rgb)
+                o_t1 = normalize(o_t1)
+                # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
+                s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
+
+                self._perceive(sess, s_t, action, reward, s_t1, done)
+                if len(self.replay_buffer) > self.config.batch_size * 4:
+                    self._update_weights(sess)
+                if self.global_t % 100000 == 0:
+                    backup_session(saver, sess, cfg.model_dir, self.global_t)
+
+                s_t = s_t1
+                # last_action = action
+                if self.global_t % 100 == 0 or reward > 0.0:
+                    print("global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f"
+                          % (self.global_t, action, reward, self.epsilon, action_q))
+
+        backup_session(saver, sess, cfg.model_dir, self.global_t)
+        return
+
+    def train_atari(self, saver, sess, env):
         cfg = self.config
         # summary
         self.add_train_summary(sess)
