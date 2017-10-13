@@ -23,12 +23,12 @@ class Network(BaseNetwork):
 
     def _create_network(self):
         with tf.device(self._device), tf.variable_scope(self._scope):
-            self.state = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name='state')
+            self.states = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name='states')
             self.dropout = tf.placeholder(tf.float32, shape=[], name='dropout')
 
-            # state_dropout = tf.nn.dropout(self.state, self.dropout)
+            # state_dropout = tf.nn.dropout(self.states, self.dropout)
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 16], name='conv1')
-            h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(self.state, W_conv1, 4) + b_conv1))
+            h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(self.states, W_conv1, 4) + b_conv1))
 
             W_conv2, b_conv2 = conv_variable([4, 4, 16, 32], name='conv2')
             h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv1, W_conv2, 2) + b_conv2))
@@ -47,10 +47,10 @@ class Network(BaseNetwork):
 
     def _prepare_loss(self):
         with tf.name_scope(self._scope):
-            self.action = tf.placeholder(tf.int64, shape=[None], name='action')
+            self.actions = tf.placeholder(tf.int64, shape=[None], name='actions')
             self.Q_target = tf.placeholder(tf.float32, shape=[None], name='Q_target')
 
-            action_onehot = tf.one_hot(self.action, self._action_dim)
+            action_onehot = tf.one_hot(self.actions, self._action_dim)
             Q_value = tf.reduce_sum(self.Q * action_onehot, axis=1)
             self.loss = tf.reduce_mean(tf.square(self.Q_target - Q_value))
 

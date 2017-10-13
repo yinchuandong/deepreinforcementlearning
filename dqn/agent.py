@@ -53,7 +53,7 @@ class Agent(BaseAgent):
 
     def pick_action(self, sess, state, reward, use_epsilon_greedy=True):
         Q_value = sess.run(self.main_net.Q, feed_dict={
-            self.main_net.state: [state], self.main_net.dropout: 1.0
+            self.main_net.states: [state], self.main_net.dropout: 1.0
         })
         Q_value = Q_value[0]
         action_index = 0
@@ -67,7 +67,7 @@ class Agent(BaseAgent):
     def _perceive(self, sess, state, action, reward, next_state, done):
         self.global_t += 1
         self.epsilon = self._anneal_epsilon(self.global_t)
-        self.replay_buffer.append([state, action, reward, next_state, done])
+        self.replay_buffer.append((state, action, reward, next_state, done))
         return
 
     def _update_weights(self, sess):
@@ -80,22 +80,22 @@ class Agent(BaseAgent):
 
         if self.config.use_double_dqn:
             Q_a_next = sess.run(self.target_net.Q_a, feed_dict={
-                self.target_net.state: batch_next_state, self.target_net.dropout: 1.0
+                self.target_net.states: batch_next_state, self.target_net.dropout: 1.0
             })
             Q_next = sess.run(self.main_net.Q, feed_dict={
-                self.main_net.state: batch_next_state, self.main_net.dropout: 1.0
+                self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
             })
             double_q = Q_next[range(self.config.batch_size), Q_a_next]
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * double_q
         else:
             Q_next = sess.run(self.main_net.Q, feed_dict={
-                self.main_net.state: batch_next_state, self.main_net.dropout: 1.0
+                self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
             })
             Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_next, axis=1)
 
         _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
-            self.main_net.state: batch_state,
-            self.main_net.action: batch_action,
+            self.main_net.states: batch_state,
+            self.main_net.actions: batch_action,
             self.main_net.Q_target: Q_target,
             self.main_net.dropout: self.config.dropout
         })
