@@ -15,26 +15,26 @@ from .network import Network
 
 class Agent(BaseAgent):
 
-    def __init__(self, config):
+    def __init__(self, cfg):
         BaseAgent.__init__(self)
 
-        self.config = config
+        self.cfg = cfg
 
         # create networks
-        state_chn = config.state_chn * (3 if config.use_rgb else 1)
-        input_shape = [config.state_dim, config.state_dim, state_chn]
-        device = "/gpu:0" if config.use_gpu else "/cpu:0"
-        self.main_net = Network(input_shape, config.action_dim, "main_net", device)
-        self.target_net = Network(input_shape, config.action_dim, "target_net", device)
+        state_chn = cfg.state_chn * (3 if cfg.use_rgb else 1)
+        input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
+        device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
+        self.main_net = Network(input_shape, cfg.action_dim, "main_net", device)
+        self.target_net = Network(input_shape, cfg.action_dim, "target_net", device)
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
         # create gradients operations
-        optimizer = tf.train.RMSPropOptimizer(config.lr, decay=config.lr_decay)
+        optimizer = tf.train.RMSPropOptimizer(cfg.lr, decay=cfg.lr_decay)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
-        gradients_clipped = [tf.clip_by_norm(grad, config.max_gradient) for grad in gradients]
+        gradients_clipped = [tf.clip_by_norm(grad, cfg.max_grad) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
 
-        self.replay_buffer = deque(maxlen=config.replay_size)
+        self.replay_buffer = deque(maxlen=cfg.replay_size)
         self.stop_requested = False
 
         return
@@ -42,13 +42,13 @@ class Agent(BaseAgent):
     def add_train_summary(self, sess):
         tf.summary.scalar("loss", self.main_net.loss)
         self.train_summary = tf.summary.merge_all()
-        self.train_summary_writer = tf.summary.FileWriter(self.config.log_dir + "/train", sess.graph)
+        self.train_summary_writer = tf.summary.FileWriter(self.cfg.log_dir + "/train", sess.graph)
         return
 
     def _anneal_epsilon(self, timestep):
-        config = self.config
-        span = float(config.epsilon_hi - config.epsilon_lo) / float(config.epsilon_timestep)
-        epsilon = config.epsilon_hi - span * min(timestep, config.epsilon_timestep)
+        cfg = self.cfg
+        span = float(cfg.eps_hi - cfg.eps_lo) / float(cfg.eps_step)
+        epsilon = cfg.eps_hi - span * min(timestep, cfg.eps_step)
         return epsilon
 
     def pick_action(self, sess, state, reward, use_epsilon_greedy=True):
@@ -58,7 +58,7 @@ class Agent(BaseAgent):
         Q_value = Q_value[0]
         action_index = 0
         if random.random() <= self.epsilon:
-            action_index = random.randrange(self.config.action_dim)
+            action_index = random.randrange(self.cfg.action_dim)
         else:
             action_index = np.argmax(Q_value)
         max_q_value = np.max(Q_value)
@@ -71,45 +71,45 @@ class Agent(BaseAgent):
         return
 
     def _update_weights(self, sess):
-        minibatch = random.sample(self.replay_buffer, self.config.batch_size)
+        minibatch = random.sample(self.replay_buffer, self.cfg.batch_size)
         batch_state = [t[0] for t in minibatch]
         batch_action = [t[1] for t in minibatch]
         batch_reward = [t[2] for t in minibatch]
         batch_next_state = [t[3] for t in minibatch]
         batch_done = np.array([int(t[4]) for t in minibatch])
 
-        if self.config.use_double_dqn:
+        if self.cfg.use_double_dqn:
             Q_a_next = sess.run(self.target_net.Q_a, feed_dict={
                 self.target_net.states: batch_next_state, self.target_net.dropout: 1.0
             })
             Q_next = sess.run(self.main_net.Q, feed_dict={
                 self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
             })
-            double_q = Q_next[range(self.config.batch_size), Q_a_next]
-            Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * double_q
+            double_q = Q_next[range(self.cfg.batch_size), Q_a_next]
+            Q_target = batch_reward + (1.0 - batch_done) * self.cfg.gamma * double_q
         else:
             Q_next = sess.run(self.main_net.Q, feed_dict={
                 self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
             })
-            Q_target = batch_reward + (1.0 - batch_done) * self.config.gamma * np.max(Q_next, axis=1)
+            Q_target = batch_reward + (1.0 - batch_done) * self.cfg.gamma * np.max(Q_next, axis=1)
 
         _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
             self.main_net.states: batch_state,
             self.main_net.actions: batch_action,
             self.main_net.Q_target: Q_target,
-            self.main_net.dropout: self.config.dropout
+            self.main_net.dropout: self.cfg.dropout
         })
 
         if self.global_t % 10 == 0:
             self.train_summary_writer.add_summary(summary, self.global_t)
             self.train_summary_writer.flush()
 
-        if self.config.use_double_dqn and self.global_t % self.config.net_update_step == 0:
+        if self.cfg.use_double_dqn and self.global_t % self.cfg.net_update_step == 0:
             sess.run(self.sync_target_net)
         return
 
     def train_ple(self, saver, sess, env):
-        cfg = self.config
+        cfg = self.cfg
         # summary
         self.add_train_summary(sess)
         self.global_t = restore_session(saver, sess, cfg.model_dir)
@@ -142,7 +142,7 @@ class Agent(BaseAgent):
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
                 self._perceive(sess, s_t, action, reward, s_t1, done)
-                if len(self.replay_buffer) > self.config.batch_size * 4:
+                if len(self.replay_buffer) > self.cfg.batch_size * 4:
                     self._update_weights(sess)
                 if self.global_t % 100000 == 0:
                     backup_session(saver, sess, cfg.model_dir, self.global_t)
@@ -157,7 +157,7 @@ class Agent(BaseAgent):
         return
 
     def train_atari(self, saver, sess, env):
-        cfg = self.config
+        cfg = self.cfg
         # summary
         self.add_train_summary(sess)
         self.global_t = restore_session(saver, sess, cfg.model_dir)
@@ -197,7 +197,7 @@ class Agent(BaseAgent):
                     reward = -1.0
 
                 self._perceive(sess, s_t, action, reward, s_t1, done)
-                if len(self.replay_buffer) > self.config.batch_size * 4:
+                if len(self.replay_buffer) > self.cfg.batch_size * 4:
                     self._update_weights(sess)
                 if self.global_t % 100000 == 0:
                     backup_session(saver, sess, cfg.model_dir, self.global_t)
