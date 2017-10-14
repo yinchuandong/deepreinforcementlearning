@@ -34,10 +34,13 @@ class Application(object):
         with self.graph.as_default():
             self.agent = Agent(self.config)
             self.saver = tf.train.Saver()
-            sess_config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
+            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+            sess_config = tf.ConfigProto(
+                log_device_placement=False,
+                allow_soft_placement=True,
+                gpu_options=gpu_options
+            )
             self.sess = tf.Session(config=sess_config)
-            #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
-            #self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
             self.sess.run(tf.global_variables_initializer())
         return
 
