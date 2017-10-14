@@ -34,10 +34,10 @@ class Application(object):
         with self.graph.as_default():
             self.agent = Agent(self.config)
             self.saver = tf.train.Saver()
-            # sess_config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
-            # self.sess = tf.Session(config=sess_config)
-            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
-            self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+            sess_config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
+            self.sess = tf.Session(config=sess_config)
+            #gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+            #self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
             self.sess.run(tf.global_variables_initializer())
         return
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_integer("state_chn", 4, "the channel of state")
     # tf.app.flags.DEFINE_integer("action_dim", 5, "the action size of game")
 
-    tf.app.flags.DEFINE_integer("eps_step", 1 * 10 ** 5, "the step of epsilon greedy")
+    tf.app.flags.DEFINE_integer("eps_step", 1 * 10 ** 6, "the step of epsilon greedy")
     tf.app.flags.DEFINE_float("eps_hi", 1.0, "maximum epsilon greedy")
     tf.app.flags.DEFINE_float("eps_lo", 0.1, "minimum epsilon greedy")
     tf.app.flags.DEFINE_integer("batch_size", 32, "batch_size")
