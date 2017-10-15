@@ -167,7 +167,6 @@ class Agent(BaseAgent):
             print("-------new epoch-----------------")
             o_t = env.reset()
             o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
-            o_t = normalize(o_t)
             s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
             done = False
             # last_action = None
@@ -186,7 +185,6 @@ class Agent(BaseAgent):
                 action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
                 o_t1, reward, done, info = env.step(action)
                 o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
-                o_t1 = normalize(o_t1)
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
