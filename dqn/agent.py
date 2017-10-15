@@ -9,7 +9,7 @@ from collections import deque
 
 from base.base_agent import BaseAgent
 from util.network_util import restore_session, backup_session
-from util.feature_util import process_image, normalize
+from util.feature_util import process_image
 from .network import Network
 
 
@@ -122,7 +122,6 @@ class Agent(BaseAgent):
             env.act(env.getActionSet()[0])
             o_t = env.getScreenRGB()
             o_t = process_image(o_t, (84, 84), None, cfg.use_rgb)
-            o_t = normalize(o_t)
             s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
             done = False
             # last_action = None
@@ -137,7 +136,6 @@ class Agent(BaseAgent):
                 done = env.game_over()
 
                 o_t1 = process_image(o_t1, (84, 84), None, cfg.use_rgb)
-                o_t1 = normalize(o_t1)
                 # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 

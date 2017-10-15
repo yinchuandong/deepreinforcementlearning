@@ -22,7 +22,25 @@ def test_crop_vision():
     print(o_t.dtype, asizeof(o_t))
     o_t2 = normalize(o_t)
     print(o_t2.dtype, asizeof(o_t2))
+    s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+    print(s_t.dtype, asizeof(s_t))
 
+    # s_t1 = s_t
+    # print('s_t', id(s_t))
+    # print('s_t1', id(s_t1))
+    # e_t = (s_t, 0)
+    # e_t1 = (s_t1, 1)
+    # print('-----', s_t[0, 0, 0])
+    # s_t[0, 0, 0] = 111
+    # s_t, _ = e_t
+    # s_t1, _ = e_t1
+    # print('-----', s_t1[0, 0, 0])
+    # print('s_t', id(s_t))
+    # print('s_t1', id(s_t1))
+    # print('e_t', id(e_t), asizeof(e_t))
+    # print('e_t1', id(e_t1), asizeof(e_t1))
+
+    return
     size = 1000
     replay_buffer = deque(maxlen=size)
     for k in range(size):
