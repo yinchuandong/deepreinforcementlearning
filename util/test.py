@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import gym
 import numpy as np
-from imgutil import process_image
+from util.feature_util import process_image
 from PIL import Image
 import matplotlib.pyplot as plt
 
