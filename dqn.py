@@ -5,9 +5,9 @@ from __future__ import print_function
 import tensorflow as tf
 import threading
 import signal
-import gym
 from dqn.agent import Agent
 from util.generic_util import get_logger
+from util.env_util import Environment
 
 
 class Application(object):
@@ -20,17 +20,10 @@ class Application(object):
         self.logger = get_logger(cfg.log_filename)
 
         # atari game
-        # self.env = gym.make("Enduro-v0")
-        self.env = gym.make(cfg.env_name)
-        cfg.action_dim = self.env.action_space.n
-
-        # ple game
-        # game = FlappyBird()
-        # self.env = PLE(game, fps=30, display_screen=True)
-        # cfg.action_dim = len(self.env.getActionSet())
+        self.env = Environment(cfg.env_name, cfg.is_atari, cfg.display, cfg.frame_skip)
+        cfg.action_dim = self.env.action_size
 
         self.cfg = cfg
-
         self.graph = tf.Graph()
         with self.graph.as_default():
             self.agent = Agent(self.cfg, self.logger)
@@ -46,14 +39,13 @@ class Application(object):
         return
 
     def signal_handler(self, signal_, frame_):
-        print("You pressed Ctrl+C !")
+        self.logger.info("You pressed Ctrl+C !")
         self.agent.stop_requested = True
         return
 
     def train(self):
         with self.graph.as_default():
-            # self.agent.train_ple(self.saver, self.sess, self.env)
-            self.agent.train_atari(self.saver, self.sess, self.env)
+            self.agent.train(self.saver, self.sess, self.env)
         return
 
     def run(self):
@@ -61,9 +53,9 @@ class Application(object):
         signal.signal(signal.SIGINT, self.signal_handler)
         train_thread.start()
 
-        print("Press Ctrl+C to stop")
+        self.logger.info("Press Ctrl+C to stop")
         signal.pause()
-        print("Now saving data....")
+        self.logger.info("Now saving data....")
         train_thread.join()
 
 
@@ -77,21 +69,22 @@ def main(args):
 
 if __name__ == "__main__":
     tf.app.flags.DEFINE_string("env_name", "Breakout-v0", "the name of game to be trained")
-    tf.app.flags.DEFINE_boolean("train", True, "train or test")
-    tf.app.flags.DEFINE_boolean("display", True, "whether display the enviroment")
+    tf.app.flags.DEFINE_boolean("is_atari", True, "whether the env name is an atari game or ple game")
     tf.app.flags.DEFINE_string("save_dir", "tmp_dqn", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", False, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
     tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
 
+    tf.app.flags.DEFINE_boolean("train", True, "train or test")
+    tf.app.flags.DEFINE_boolean("display", True, "whether display the enviroment")
+    tf.app.flags.DEFINE_integer("frame_skip", 1, "the number of skipping frames")
+
     tf.app.flags.DEFINE_boolean("use_double_dqn", False, "whether use target net to estimate Q_target")
     tf.app.flags.DEFINE_integer("net_update_step", 1000, "the update step of target net")
     tf.app.flags.DEFINE_boolean("use_duel_dqn", False, "whether use duelling channel")
     tf.app.flags.DEFINE_boolean("use_rgb", False, "whether use rgb or gray image")
-    tf.app.flags.DEFINE_integer("frame_skip", 4, "the number of skipping frames")
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
-    tf.app.flags.DEFINE_integer("state_chn", 4, "the channel of state")
-    # tf.app.flags.DEFINE_integer("action_dim", 5, "the action size of game")
+    tf.app.flags.DEFINE_integer("state_history", 4, "the number of consecutive frames as feature")
 
     tf.app.flags.DEFINE_integer("eps_step", 1 * 10 ** 6, "the step of epsilon greedy")
     tf.app.flags.DEFINE_float("eps_hi", 1.0, "maximum epsilon greedy")

@@ -15,27 +15,23 @@ class Environment(object):
             self.env = gym.make(env_name)
             skip_wrapper = SkipWrapper(frame_skip)
             self.env = skip_wrapper(self.env)
-            # cfg.action_dim = self.env.action_space.n
+            self._action_size = self.env.action_space.n
+            self._action_set = [k for k in range(self._action_size)]
         else:
             # ple game
             game = eval(env_name)()
             self.env = PLE(game, fps=30, display_screen=display, frame_skip=frame_skip)
-            # cfg.action_dim = len(self.env.getActionSet())
+            self._action_size = len(self.env.getActionSet())
+            self._action_set = self.env.getActionSet()
         return
 
     @property
     def action_size(self):
-        if self.is_atari:
-            return self.env.action_space.n
-        else:
-            return len(self.env.getActionSet())
+        return self._action_size
 
     @property
     def action_set(self):
-        if self.is_atari:
-            return [k for k in range(self.env.action_space.n)]
-        else:
-            return self.env.getActionSet()
+        return self._action_set
 
     def step(self, action):
         if self.is_atari:

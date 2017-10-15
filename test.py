@@ -42,7 +42,7 @@ def test1():
 
 def test2():
     logger = get_logger("tmp_dqn/tmp.log")
-    env = Environment('FlappyBird', is_atari=False, frame_skip=10, display=True)
+    # env = Environment('FlappyBird', is_atari=False, frame_skip=10, display=True)
     # env = Environment('Breakout-v0', is_atari=True, frame_skip=10, display=True)
     nb_frames = 50
     env.reset()
