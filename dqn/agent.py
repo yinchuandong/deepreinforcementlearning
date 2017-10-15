@@ -15,10 +15,11 @@ from .network import Network
 
 class Agent(BaseAgent):
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, logger):
         BaseAgent.__init__(self)
 
         self.cfg = cfg
+        self.logger = logger
 
         # create networks
         state_chn = cfg.state_chn * (3 if cfg.use_rgb else 1)
@@ -117,7 +118,7 @@ class Agent(BaseAgent):
 
         env.init()
         while not self.stop_requested and self.global_t < cfg.max_train_step:
-            print("-------new epoch-----------------")
+            self.logger.info("-------new epoch-----------------")
             env.reset_game()
             env.act(env.getActionSet()[0])
             o_t = env.getScreenRGB()
@@ -148,8 +149,8 @@ class Agent(BaseAgent):
                 s_t = s_t1
                 # last_action = action
                 if self.global_t % 100 == 0 or reward > 0.0:
-                    print("global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f"
-                          % (self.global_t, action, reward, self.epsilon, action_q))
+                    self.logger.info("global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f".format(
+                        self.global_t, action, reward, self.epsilon, action_q))
 
         backup_session(saver, sess, cfg.model_dir, self.global_t)
         return
@@ -162,7 +163,7 @@ class Agent(BaseAgent):
         self.epsilon = self._anneal_epsilon(self.global_t)
 
         while not self.stop_requested and self.global_t < cfg.max_train_step:
-            print("-------new epoch-----------------")
+            self.logger.info("-------new epoch-----------------")
             o_t = env.reset()
             o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
             s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
@@ -193,16 +194,16 @@ class Agent(BaseAgent):
                     reward = -1.0
 
                 self._perceive(sess, s_t, action, reward, s_t1, done)
-                if len(self.replay_buffer) > self.cfg.batch_size * 4:
-                    self._update_weights(sess)
+                # if len(self.replay_buffer) > self.cfg.batch_size * 4:
+                #     self._update_weights(sess)
                 if self.global_t % 100000 == 0:
                     backup_session(saver, sess, cfg.model_dir, self.global_t)
 
                 s_t = s_t1
                 # last_action = action
                 if self.global_t % 100 == 0 or reward > 0.0:
-                    print("global_t=%d / action_id=%d reward=%.2f / epsilon=%.6f / Q=%.4f"
-                          % (self.global_t, action, reward, self.epsilon, action_q))
+                    self.logger.info("global_t={} / action_id={} reward={:04.2f} / epsilon={:04.2f} / Q={:04.2f}"
+                                     .format(self.global_t, action, reward, self.epsilon, action_q))
 
         backup_session(saver, sess, cfg.model_dir, self.global_t)
         return

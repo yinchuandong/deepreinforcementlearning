@@ -6,33 +6,34 @@ import tensorflow as tf
 import threading
 import signal
 import gym
-from ple.games.flappybird import FlappyBird
-from ple import PLE
-
 from dqn.agent import Agent
+from util.generic_util import get_logger
 
 
 class Application(object):
 
-    def __init__(self, config):
-        config.model_dir = config.save_dir + "/models"
-        config.log_dir = config.save_dir + "/logs"
+    def __init__(self, cfg):
+        cfg.model_dir = cfg.save_dir + "/models"
+        cfg.log_dir = cfg.save_dir + "/logs"
+        cfg.log_filename = cfg.log_dir + "/debug.log"
+
+        self.logger = get_logger(cfg.log_filename)
 
         # atari game
-        # env = gym.make("Enduro-v0")
-        # self.env = gym.make(config.env_name)
-        # config.action_dim = self.env.action_space.n
+        # self.env = gym.make("Enduro-v0")
+        self.env = gym.make(cfg.env_name)
+        cfg.action_dim = self.env.action_space.n
 
         # ple game
-        game = FlappyBird()
-        self.env = PLE(game, fps=30, display_screen=True)
-        config.action_dim = len(self.env.getActionSet())
+        # game = FlappyBird()
+        # self.env = PLE(game, fps=30, display_screen=True)
+        # cfg.action_dim = len(self.env.getActionSet())
 
-        self.config = config
+        self.cfg = cfg
 
         self.graph = tf.Graph()
         with self.graph.as_default():
-            self.agent = Agent(self.config)
+            self.agent = Agent(self.cfg, self.logger)
             self.saver = tf.train.Saver()
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
             sess_config = tf.ConfigProto(
@@ -51,7 +52,8 @@ class Application(object):
 
     def train(self):
         with self.graph.as_default():
-            self.agent.train_ple(self.saver, self.sess, self.env)
+            # self.agent.train_ple(self.saver, self.sess, self.env)
+            self.agent.train_atari(self.saver, self.sess, self.env)
         return
 
     def run(self):
@@ -66,8 +68,8 @@ class Application(object):
 
 
 def main(args):
-    config = tf.app.flags.FLAGS
-    app = Application(config)
+    cfg = tf.app.flags.FLAGS
+    app = Application(cfg)
     # app.train()
     app.run()
     return
@@ -75,6 +77,8 @@ def main(args):
 
 if __name__ == "__main__":
     tf.app.flags.DEFINE_string("env_name", "Breakout-v0", "the name of game to be trained")
+    tf.app.flags.DEFINE_boolean("train", True, "train or test")
+    tf.app.flags.DEFINE_boolean("display", True, "whether display the enviroment")
     tf.app.flags.DEFINE_string("save_dir", "tmp_dqn", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", False, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
