@@ -12,7 +12,7 @@ from base.base_network import BaseNetwork
 class Network(BaseNetwork):
 
     def __init__(self, input_shape, action_dim, scope, device='/gpu:0'):
-        BaseNetwork.__init__(self, device)
+        BaseNetwork.__init__(self, scope, device)
         self._input_shape = input_shape
         self._action_dim = action_dim
         self._scope = scope
@@ -57,10 +57,4 @@ class Network(BaseNetwork):
             action_onehot = tf.one_hot(self.actions, self._action_dim)
             Q_value = tf.reduce_sum(self.Q * action_onehot, axis=1)
             self.loss = tf.reduce_mean(tf.square(self.Q_target - Q_value))
-
         return
-
-    @property
-    def vars(self):
-        trainable_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self._scope)
-        return trainable_vars

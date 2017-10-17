@@ -3,13 +3,10 @@ import tensorflow as tf
 
 class BaseNetwork(object):
 
-    def __init__(self, device):
+    def __init__(self, scope, device):
+        self._scope = scope
         self._device = device
         return
-
-    @property
-    def vars(self):
-        raise NotImplementedError('please override vars method')
 
     def sync_from(self, src_net, scope=None):
         src_vars = src_net.vars
@@ -21,7 +18,7 @@ class BaseNetwork(object):
                 sync_ops.append(tf.assign(dst_var, src_var))
             return tf.group(*sync_ops, name=scope)
 
-
-if __name__ == '__main__':
-    net = BaseNetwork('/cpu:0')
-    net.vars
+    @property
+    def vars(self):
+        trainable_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=self._scope)
+        return trainable_vars
