@@ -34,12 +34,13 @@ class Environment(object):
     def action_set(self):
         return self._action_set
 
-    def step(self, action):
+    def step(self, action_idx):
         if self.is_atari:
-            img, reward, terminal, _ = self.env.step(action)
+            img, reward, terminal, _ = self.env.step(action_idx)
             if self.display:
                 self.env.render()
         else:
+            action = self.action_set[action_idx]
             reward = self.env.act(action)
             img = self.env.getScreenRGB()
             img = np.rot90(img, 3)
