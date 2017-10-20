@@ -26,8 +26,8 @@ class Agent(BaseAgent):
         state_chn = cfg.state_history * (3 if cfg.use_rgb else 1)
         input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
-        self.main_net = Network(input_shape, cfg.action_dim, True, "main_net", device)
-        self.target_net = Network(input_shape, cfg.action_dim, True, "target_net", device)
+        self.main_net = Network(input_shape, cfg.action_dim, cfg.use_huber_loss, "main_net", device)
+        self.target_net = Network(input_shape, cfg.action_dim, cfg.use_huber_loss, "target_net", device)
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
         # create gradients operations
