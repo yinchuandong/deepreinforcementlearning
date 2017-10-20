@@ -6,10 +6,11 @@ import numpy as np
 import tensorflow as tf
 import random
 from collections import deque
+from PIL import Image
 
 from base.base_agent import BaseAgent
 from util.network_util import restore_session, backup_session
-from util.feature_util import process_image
+from util.feature_util import create_process_fn
 from .network import Network
 
 
@@ -37,7 +38,8 @@ class Agent(BaseAgent):
 
         self.replay_buffer = deque(maxlen=cfg.replay_size)
         self.stop_requested = False
-
+        self.global_t = 0
+        self.n_episode = 0
         return
 
     def add_train_summary(self, sess):
@@ -111,41 +113,58 @@ class Agent(BaseAgent):
 
     def train(self, saver, sess, env):
         cfg = self.cfg
+        process_fn = create_process_fn(cfg.is_atari, cfg.use_rgb)
+
         # summary
         self.add_train_summary(sess)
-        self.global_t = restore_session(saver, sess, cfg.model_dir)
+        self.global_t, self.n_episode = restore_session(saver, sess, cfg.model_dir)
         self.epsilon = self._anneal_epsilon(self.global_t)
 
+        epi_rewards = []
+        best_epi_reward = 0.0
         while not self.stop_requested and self.global_t < cfg.max_train_step:
-            self.logger.info("-------new epoch-----------------")
+            self.n_episode += 1
+            self.logger.info("\n-------new epoch: {}----------".format(self.n_episode))
+
             o_t = env.reset()
-            o_t = process_image(o_t, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
+            o_t = process_fn(o_t)
             s_t = np.concatenate([o_t] * self.cfg.state_history, axis=2)
             done = False
 
+            epi_reward = 0.0
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
                 o_t1, reward, done = env.step(action)
-                o_t1 = process_image(o_t1, (110, 84), (0, 20, cfg.state_dim, 20 + cfg.state_dim), cfg.use_rgb)
-                # Image.fromarray(np.reshape(o_t1, [84, 84])).save("tmp/%d.png" % (self.global_t))
+                o_t1 = process_fn(o_t1)
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
-                # reward reshaping
-                if reward == 0.0:
-                    reward == 0.1
-                if done:
-                    reward = -1.0
+                epi_reward += reward
+                # if reward != 0 or done:
+                #     self.logger.info("reward {} /done{}".format(reward, done))
+                #     Image.fromarray(np.reshape(o_t1, [84, 84])) \
+                #         .save("%s/%d.png" % (cfg.log_dir, self.global_t))
+                #     Image.fromarray(img).save("%s/%d_o.png" % (cfg.log_dir, self.global_t))
 
                 self._perceive(sess, s_t, action, reward, s_t1, done)
                 if len(self.replay_buffer) > self.cfg.batch_size * 4:
                     self._update_weights(sess)
                 if self.global_t % 100000 == 0:
-                    backup_session(saver, sess, cfg.model_dir, self.global_t)
+                    backup_session(saver, sess, cfg.model_dir, self.global_t, self.n_episode)
 
                 s_t = s_t1
                 if self.global_t % 100 == 0 or reward > 0.0:
                     self.logger.info("global_t={} / action_id={} reward={:04.2f} / epsilon={:04.2f} / Q={:04.2f}"
                                      .format(self.global_t, action, reward, self.epsilon, action_q))
 
-        backup_session(saver, sess, cfg.model_dir, self.global_t)
+            # save the episode reward
+            epi_rewards.append(epi_reward)
+            if len(epi_rewards) % 100 == 0:
+                self.logger.info("\n---episode={} / avg_epi_reward={:04.2f}".
+                                 format(self.n_episode, np.mean(epi_rewards)))
+                epi_rewards = []
+
+            if epi_reward > best_epi_reward:
+                self.logger.info("\n===reward improved from {:04.2f} to {:04.2f}".format(best_epi_reward, epi_reward))
+                best_epi_reward = epi_reward
+        backup_session(saver, sess, cfg.model_dir, self.global_t, self.n_episode)
         return

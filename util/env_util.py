@@ -2,6 +2,7 @@ import gym
 from gym.wrappers.frame_skipping import SkipWrapper
 from ple.games import *
 from ple import PLE
+import numpy as np
 
 
 class Environment(object):
@@ -41,6 +42,7 @@ class Environment(object):
         else:
             reward = self.env.act(action)
             img = self.env.getScreenRGB()
+            img = np.rot90(img, 3)
             terminal = self.env.game_over()
         return (img, reward, terminal)
 
@@ -50,4 +52,5 @@ class Environment(object):
         else:
             self.env.reset_game()
             img = self.env.getScreenRGB()
+            img = np.rot90(img, 3)
         return img

@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import gym
 import numpy as np
-from util.feature_util import process_image, normalize
+from feature_util import process_image, normalize, create_process_fn
 from PIL import Image
 import matplotlib.pyplot as plt
 from time import time
@@ -14,16 +14,16 @@ from copy import deepcopy
 
 
 def test_crop_vision():
-    env = gym.make('Breakout-v0')
-    o_t = env.reset()
-    print(o_t.shape)
+    # env = gym.make('Breakout-v0')
+    # o_t = env.reset()
+    # print(o_t.shape)
     # o_t = process_image(o_t, (84, 110), (0, 20, 84, 104), False)
-    o_t = process_image(o_t, (84, 110), (0, 20, 84, 104), True)
-    print(o_t.dtype, asizeof(o_t))
-    o_t2 = normalize(o_t)
-    print(o_t2.dtype, asizeof(o_t2))
-    s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
-    print(s_t.dtype, asizeof(s_t))
+    # o_t = process_image(o_t, (84, 110), (0, 20, 84, 104), True)
+    # print(o_t.dtype, asizeof(o_t))
+    # o_t2 = normalize(o_t)
+    # print(o_t2.dtype, asizeof(o_t2))
+    # s_t = np.concatenate([o_t, o_t, o_t, o_t], axis=2)
+    # print(s_t.dtype, asizeof(s_t))
 
     # s_t1 = s_t
     # print('s_t', id(s_t))
@@ -40,18 +40,30 @@ def test_crop_vision():
     # print('e_t', id(e_t), asizeof(e_t))
     # print('e_t1', id(e_t1), asizeof(e_t1))
 
-    return
-    size = 1000
-    replay_buffer = deque(maxlen=size)
-    for k in range(size):
-        replay_buffer.append(deepcopy(o_t))
+    # return
+    # size = 1000
+    # replay_buffer = deque(maxlen=size)
+    # for k in range(size):
+    #     replay_buffer.append(deepcopy(o_t))
 
-    print("buffer size:", asizeof(replay_buffer))
-    # o_t = process_image(o_t, (84, 110), None, True)
+    # print("buffer size:", asizeof(replay_buffer))
+
+    return
+
+
+def test_atari_img_process():
+    process_fn = create_process_fn(is_atari=False, use_rgb=True)
+    o_t = Image.open("tmp2.png")
+    o_t = np.array(o_t)
+
+    o_t = process_fn(o_t)
+    # print(o_t[o_t == 0].shape)
+    # print(o_t[o_t != 0].shape)
     # print(o_t.shape)
-    # plt.figure(figsize=(3, 3))
-    # plt.imshow(o_t)
-    # plt.show()
+    plt.figure(figsize=(3, 3))
+    plt.imshow(o_t)
+    plt.show()
+
     return
 
 
@@ -68,7 +80,8 @@ def test_gym_render():
 
 
 def main():
-    test_crop_vision()
+    test_atari_img_process()
+    # test_crop_vision()
     # test_gym_render()
     return
 

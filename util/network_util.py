@@ -56,7 +56,7 @@ def conv_variable(weight_shape, name, deconv=False):
 
 
 def conv2d(x, W, stride):
-    return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding='VALID')
+    return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding="VALID")
 
 
 def deconv2d(x, W, input_width, input_height, stride):
@@ -65,17 +65,17 @@ def deconv2d(x, W, input_width, input_height, stride):
     out_channel = W.get_shape()[2].value
 
     out_height, out_width = get2d_deconv_output_size(
-        input_height, input_width, filter_height, filter_width, stride, 'VALID')
+        input_height, input_width, filter_height, filter_width, stride, "VALID")
     batch_size = tf.shape(x)[0]
     output_shape = tf.stack([batch_size, out_height, out_width, out_channel])
-    return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding='VALID')
+    return tf.nn.conv2d_transpose(x, W, output_shape, strides=[1, stride, stride, 1], padding="VALID")
 
 
 def get2d_deconv_output_size(input_height, input_width, filter_height, filter_width, stride, padding_type):
-    if padding_type == 'VALID':
+    if padding_type == "VALID":
         out_height = (input_height - 1) * stride + filter_height
         out_width = (input_width - 1) * stride + filter_width
-    elif padding_type == 'SAME':
+    elif padding_type == "SAME":
         out_height = input_height * stride
         out_width = input_width * stride
     return out_height, out_width
@@ -88,12 +88,12 @@ def flatten_conv_layer(h_conv):
 
 
 def max_pool_2x2(x):
-    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="VALID")
 
 
 def lstm_last_relevant(output, length):
-    ''' get the last relevant frame of the output of tf.nn.dynamica_rnn()
-    '''
+    """ get the last relevant frame of the output of tf.nn.dynamica_rnn()
+    """
     batch_size = tf.shape(output)[0]
     max_length = int(output.get_shape()[1])
     output_size = int(output.get_shape()[2])
@@ -104,17 +104,18 @@ def lstm_last_relevant(output, length):
 
 
 def variable_summaries(var, name=None):
-    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-    with tf.name_scope('summaries'):
+    """ Attach a lot of summaries to a Tensor (for TensorBoard visualization).
+    """
+    with tf.name_scope("summaries"):
         with tf.name_scope(name):
             mean = tf.reduce_mean(var)
-            tf.summary.scalar('mean', mean)
-            with tf.name_scope('stddev'):
+            tf.summary.scalar("mean", mean)
+            with tf.name_scope("stddev"):
                 stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-            tf.summary.scalar('stddev', stddev)
-            tf.summary.scalar('max', tf.reduce_max(var))
-            tf.summary.scalar('min', tf.reduce_min(var))
-            tf.summary.histogram('histogram', var)
+            tf.summary.scalar("stddev", stddev)
+            tf.summary.scalar("max", tf.reduce_max(var))
+            tf.summary.scalar("min", tf.reduce_min(var))
+            tf.summary.histogram("histogram", var)
     return
 
 
@@ -125,31 +126,36 @@ def restore_session(saver, sess, model_dir):
         sess: tf.Session,
         model_dir: string, the path to save model
     Returns:
-        global_t: return t
+        global_t:
+        n_episode:
     """
     checkpoint = tf.train.get_checkpoint_state(model_dir)
     if checkpoint and checkpoint.model_checkpoint_path:
         saver.restore(sess, checkpoint.model_checkpoint_path)
-        print ('checkpoint loaded:', checkpoint.model_checkpoint_path)
-        tokens = checkpoint.model_checkpoint_path.split('-')
+        print("checkpoint loaded:", checkpoint.model_checkpoint_path)
+        tokens = checkpoint.model_checkpoint_path.split("-")
         # set global step
-        global_t = int(tokens[1])
-        print ('>>> global step set: ', global_t)
+        global_t = int(tokens[2])
+        n_episode = int(tokens[1])
+        print(">>> global step set: ", global_t)
     else:
-        print ('Could not find old checkpoint')
+        print("Could not find old checkpoint")
         global_t = 0
-    return global_t
+        n_episode = 0
+    return global_t, n_episode
 
 
-def backup_session(saver, sess, model_dir, global_t):
+def backup_session(saver, sess, model_dir, global_t, n_episode=0):
     """ backup the session to given model_dir
     Args:
         saver: tf.train.Saver,
         sess: tf.Session,
         model_dir: string, the path to save model
         global_t: int, the number of timestep
+        n_episode: int
     """
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-    saver.save(sess, model_dir + '/' + 'checkpoint', global_step=global_t)
+    filename = "checkpoint-%d" % (n_episode)
+    saver.save(sess, model_dir + "/" + filename, global_step=global_t)
     return

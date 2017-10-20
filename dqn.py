@@ -18,7 +18,7 @@ class Application(object):
         cfg.log_dir = cfg.save_dir + "/logs"
         cfg.log_filename = cfg.log_dir + "/debug.log"
 
-        tf.set_random_seet(cfg.random_seed)
+        tf.set_random_seed(cfg.random_seed)
         random.seed(cfg.random_seed)
 
         self.logger = get_logger(cfg.log_filename)
@@ -32,7 +32,7 @@ class Application(object):
         with self.graph.as_default():
             self.agent = Agent(self.cfg, self.logger)
             self.saver = tf.train.Saver()
-            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
             sess_config = tf.ConfigProto(
                 log_device_placement=False,
                 allow_soft_placement=True,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_string("env_name", "Breakout-v0", "the name of game to be trained")
     tf.app.flags.DEFINE_boolean("is_atari", True, "whether the env name is an atari game or ple game")
     tf.app.flags.DEFINE_string("save_dir", "tmp_dqn", "save models and logs")
-    tf.app.flags.DEFINE_boolean("use_gpu", False, "use gpu or cpu to train")
+    tf.app.flags.DEFINE_boolean("use_gpu", True, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
     tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
 
