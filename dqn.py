@@ -88,6 +88,7 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_boolean("use_double_dqn", False, "whether use target net to estimate Q_target")
     tf.app.flags.DEFINE_integer("net_update_step", 1000, "the update step of target net")
     tf.app.flags.DEFINE_boolean("use_duel_dqn", False, "whether use duelling channel")
+    tf.app.flags.DEFINE_boolean("use_huber_loss", True, "whether use huber loss")
     tf.app.flags.DEFINE_boolean("use_rgb", False, "whether use rgb or gray image")
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
     tf.app.flags.DEFINE_integer("state_history", 4, "the number of consecutive frames as feature")

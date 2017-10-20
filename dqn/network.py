@@ -10,10 +10,11 @@ from base.base_network import BaseNetwork
 
 class Network(BaseNetwork):
 
-    def __init__(self, input_shape, action_dim, scope, device="/gpu:0"):
+    def __init__(self, input_shape, action_dim, use_huber_loss=True, scope="net", device="/gpu:0"):
         BaseNetwork.__init__(self, scope, device)
         self._input_shape = input_shape
         self._action_dim = action_dim
+        self._use_huber_loss = use_huber_loss
         self._scope = scope
         self._device = device
         self._create_network()
@@ -55,5 +56,13 @@ class Network(BaseNetwork):
 
             action_onehot = tf.one_hot(self.actions, self._action_dim)
             Q_value = tf.reduce_sum(self.Q * action_onehot, axis=1)
-            self.loss = tf.reduce_mean(tf.square(self.Q_target - Q_value))
+
+            diff = self.Q_target - Q_value
+
+            if self._use_huber_loss:
+                # huber loss: https://blog.openai.com/openai-baselines-dqn/
+                _loss = tf.where(tf.abs(diff) < 1.0, 0.5 * tf.square(diff), tf.abs(diff) - 0.5)
+                self.loss = tf.reduce_mean(_loss)
+            else:
+                self.loss = tf.reduce_mean(tf.abs(diff))
         return
