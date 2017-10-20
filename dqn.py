@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import random
 import threading
 import signal
 from dqn.agent import Agent
@@ -16,6 +17,9 @@ class Application(object):
         cfg.model_dir = cfg.save_dir + "/models"
         cfg.log_dir = cfg.save_dir + "/logs"
         cfg.log_filename = cfg.log_dir + "/debug.log"
+
+        tf.set_random_seet(cfg.random_seed)
+        random.seed(cfg.random_seed)
 
         self.logger = get_logger(cfg.log_filename)
 
@@ -74,6 +78,8 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_boolean("use_gpu", False, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
     tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
+
+    tf.app.flags.DEFINE_integer('random_seed', 666, 'Value of random seed')
 
     tf.app.flags.DEFINE_boolean("train", True, "train or test")
     tf.app.flags.DEFINE_boolean("display", True, "whether display the enviroment")
