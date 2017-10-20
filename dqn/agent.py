@@ -153,7 +153,7 @@ class Agent(BaseAgent):
 
                 s_t = s_t1
                 if self.global_t % 100 == 0 or reward > 0.0:
-                    self.logger.info("global_t={} / action_id={} reward={:04.2f} / epsilon={:04.2f} / Q={:04.2f}"
+                    self.logger.info("global_t={} / action_id={} reward={:04.2f} / epsilon={:06.4f} / Q={:04.2f}"
                                      .format(self.global_t, action, reward, self.epsilon, action_q))
 
             # save the episode reward
