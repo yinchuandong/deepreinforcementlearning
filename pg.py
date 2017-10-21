@@ -66,8 +66,8 @@ class Application(object):
 def main(args):
     cfg = tf.app.flags.FLAGS
     app = Application(cfg)
-    app.train()
-    # app.run()
+    # app.train()
+    app.run()
     return
 
 
@@ -85,8 +85,6 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_boolean("display", True, "whether display the enviroment")
     tf.app.flags.DEFINE_integer("frame_skip", 1, "the number of skipping frames")
 
-    tf.app.flags.DEFINE_boolean("use_double_dqn", False, "whether use target net to estimate Q_target")
-    tf.app.flags.DEFINE_integer("net_update_step", 1000, "the update step of target net")
     tf.app.flags.DEFINE_boolean("use_duel_dqn", False, "whether use duelling channel")
     tf.app.flags.DEFINE_boolean("use_rgb", False, "whether use rgb or gray image")
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
