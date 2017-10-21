@@ -5,6 +5,25 @@ import numpy as np
 import logging
 
 
+def print_sentence(logger, data):
+    """
+    Adapted from Assignment 3 of CS224N
+
+    Args:
+        logger: logger instance
+        data: dict d["x"] = ["I", "live", ...]
+    """
+    spacings = [max([len(seq[i]) for seq in data.values()])
+                for i in range(len(data[list(data.keys())[0]]))]
+    # Compute the word spacing
+    for key, seq in data.items():
+        # logger.info("{} : ".format(key))
+        to_print = ""
+        for token, spacing in zip(seq, spacings):
+            to_print += token + " " * (spacing - len(token) + 1)
+        logger.info(to_print)
+
+
 def get_logger(filename):
     parent_dir = os.path.dirname(filename)
     if not os.path.exists(parent_dir):
@@ -19,6 +38,10 @@ def get_logger(filename):
         '%(asctime)s:%(levelname)s: %(message)s'))
     logging.getLogger().addHandler(handler)
     return logger
+
+
+def raise_not_implemented_error():
+    raise NotImplementedError("please implement it in subclass")
 
 
 class Progbar(object):

@@ -10,6 +10,3 @@ class BaseAgent(object):
 
     def __init__(self):
         return
-
-    def pick_action(self, sess, state, reward=0.0, use_epsilon_greedy=True):
-        raise NotImplementedError('please override step function in BaseAgent')
