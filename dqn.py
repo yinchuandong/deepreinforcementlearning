@@ -66,8 +66,8 @@ class Application(object):
 def main(args):
     cfg = tf.app.flags.FLAGS
     app = Application(cfg)
-    # app.train()
-    app.run()
+    app.train()
+    # app.run()
     return
 
 

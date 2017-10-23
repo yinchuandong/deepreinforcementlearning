@@ -91,7 +91,7 @@ class Agent(BaseAgent):
 
     def train(self, saver, sess, env):
         cfg = self.cfg
-        process_fn = create_process_fn(cfg.is_atari, cfg.use_rgb)
+        process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
 
         # summary
         self.add_train_summary(sess)

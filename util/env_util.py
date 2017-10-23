@@ -33,7 +33,7 @@ class Environment(object):
             self._action_set = self.env.getActionSet()
         elif self.env_mode == "custom":
             from customgame import *
-            self.env = eval(env_name)(display_screen=display, fps=60, frame_skip=frame_skip)
+            self.env = eval(env_name)(display_screen=display, fps=120, frame_skip=frame_skip)
             self._action_size = self.env.action_size
             self._action_set = self.env.action_set
         else:
