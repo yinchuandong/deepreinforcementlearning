@@ -9,18 +9,19 @@ from itertools import cycle
 
 
 class CustomFlappyBird(object):
-    def __init__(self, fps=60, screen_width=288, screen_height=512, display_screen=True):
+    def __init__(self, fps=60, screen_width=288, screen_height=512, display_screen=True, frame_skip=1):
         pygame.init()
         self._fps = fps
         self._screen_width = screen_width
         self._screen_height = screen_height
         self._display_screen = display_screen
+        self._frame_skip = frame_skip
 
         self._fps_clock = pygame.time.Clock()
         self._screen = pygame.display.set_mode((self._screen_width, self._screen_height))
         pygame.display.set_caption('Flappy Bird')
 
-        self._images, self.sounds, self._hit_masks = self._load_resources()
+        self._images, self._sounds, self._hit_masks = self._load_resources()
         self._pip_gap_size = 100  # gap between upper and lower part of pipe
         self._basey = self._screen_height * 0.79
 
@@ -68,7 +69,7 @@ class CustomFlappyBird(object):
     def _frame_step(self, input_actions):
         pygame.event.pump()
 
-        reward = 0.1
+        reward = 0.0
         terminal = False
 
         if sum(input_actions) != 1:
@@ -80,7 +81,7 @@ class CustomFlappyBird(object):
             if self._player_y > -2 * self._player_height:
                 self._player_vel_y = self._player_flap_acc
                 self._player_flapped = True
-                # self.sounds['wing'].play()
+                # self._sounds['wing'].play()
 
         # check for score
         playerMidPos = self._player_x + self._player_width / 2
@@ -88,7 +89,7 @@ class CustomFlappyBird(object):
             pipeMidPos = pipe['x'] + self._pipe_width / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 self._score += 1
-                # self.sounds['point'].play()
+                # self._sounds['point'].play()
                 reward = 1.0
 
         # _player_index basex change
@@ -128,8 +129,8 @@ class CustomFlappyBird(object):
                                      'index': self._player_index},
                                     self._upper_pipes, self._lower_pipes)
         if isCrash:
-            # self.sounds['hit'].play()
-            # self.sounds['die'].play()
+            # self._sounds['hit'].play()
+            # self._sounds['die'].play()
             terminal = True
             reward = -1.0
             self.reset()
@@ -167,8 +168,14 @@ class CustomFlappyBird(object):
     def step(self, action_id):
         action = np.zeros([2])
         action[action_id] = 1
-        o_t1, reward, terminal = self._frame_step(action)
-        return o_t1, reward, terminal
+
+        total_reward = 0.0
+        for _ in range(self._frame_skip):
+            o_t1, reward, terminal = self._frame_step(action)
+            total_reward += reward
+            if terminal:
+                break
+        return o_t1, total_reward, terminal
 
     @property
     def action_size(self):

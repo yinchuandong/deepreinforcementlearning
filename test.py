@@ -43,10 +43,10 @@ def test1():
 def test2():
     logger = get_logger("tmp_dqn/tmp.log")
     process_fn = create_process_fn(is_atari=False, use_rgb=True)
-    env = Environment('CustomFlappyBird', mode="custom", display=False)
+    env = Environment('CustomFlappyBird', mode="custom", display=False, frame_skip=3)
     # env = Environment('FlappyBird', mode="ple", frame_skip=10, display=True)
     # env = Environment('Breakout-v0', mode="atari", frame_skip=10, display=True)
-    nb_frames = 100
+    nb_frames = 20
     env.reset()
     for i in range(nb_frames):
         # Image.fromarray(np.reshape(o_t, [84, 84])).save("tmp_%d.png" % (i))
@@ -55,10 +55,10 @@ def test2():
         o_t, reward, terminal = env.step(action)
         reward = np.clip(reward, -1.0, 1.0)
         o_t = process_fn(o_t)
-        print(o_t.shape, o_t.dtype)
+        # print(o_t.shape, o_t.dtype)
         Image.fromarray(o_t).save("tmp_%d.png" % (i))
         # print(reward)
-        logger.info("{}".format(i))
+        logger.info("{}/{}/{}".format(i, reward, terminal))
         if terminal:
             env.reset()
 
