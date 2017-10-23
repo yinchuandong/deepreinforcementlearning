@@ -111,8 +111,9 @@ class Agent(BaseAgent):
             sess.run(self.sync_target_net)
         return
 
-    def train(self, saver, sess, env):
+    def train(self, sess, env):
         cfg = self.cfg
+        saver = tf.train.Saver(var_list=self.main_net.vars)
         process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
 
         # summary

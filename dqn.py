@@ -31,7 +31,6 @@ class Application(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             self.agent = Agent(self.cfg, self.logger)
-            self.saver = tf.train.Saver()
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
             sess_config = tf.ConfigProto(
                 log_device_placement=False,
@@ -49,7 +48,7 @@ class Application(object):
 
     def train(self):
         with self.graph.as_default():
-            self.agent.train(self.saver, self.sess, self.env)
+            self.agent.train(self.sess, self.env)
         return
 
     def run(self):
@@ -66,8 +65,8 @@ class Application(object):
 def main(args):
     cfg = tf.app.flags.FLAGS
     app = Application(cfg)
-    app.train()
-    # app.run()
+    # app.train()
+    app.run()
     return
 
 
