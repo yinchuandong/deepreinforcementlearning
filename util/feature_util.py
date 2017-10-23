@@ -2,21 +2,22 @@ from PIL import Image
 import numpy as np
 
 
-def create_process_fn(is_atari=True, use_rgb=False):
+def create_process_fn(env_mode="atari", use_rgb=False):
     """ preprocess inputted image according to different games
     Args:
-        is_atari: boolean, whether it's atari game
+        env_mode: string, ["atari", "ple", "custom"]
         use_rgb: boolean, whether use rgb or gray image
     Returns:
         f: function
     """
-    if is_atari:
+    if env_mode == "atari":
         scale_size = (84, 110)
         crop_area = (0, 20, 84, 104)
-    else:
+    elif env_mode == "ple" or env_mode == "custom":
         scale_size = (84, 110)
         crop_area = (0, 0, 84, 84)
-        # crop_area = None
+    else:
+        raise ValueError("wrong value of env_mode")
 
     def f(img_array):
         img = Image.fromarray(img_array)

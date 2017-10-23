@@ -42,7 +42,7 @@ def test1():
 
 def test2():
     logger = get_logger("tmp_dqn/tmp.log")
-    process_fn = create_process_fn(is_atari=False, use_rgb=True)
+    process_fn = create_process_fn(mode=False, use_rgb=True)
     env = Environment('CustomFlappyBird', mode="custom", display=False, frame_skip=3)
     # env = Environment('FlappyBird', mode="ple", frame_skip=10, display=True)
     # env = Environment('Breakout-v0', mode="atari", frame_skip=10, display=True)

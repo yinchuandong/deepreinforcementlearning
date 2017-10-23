@@ -24,7 +24,7 @@ class Application(object):
         self.logger = get_logger(cfg.log_filename)
 
         # atari game
-        self.env = Environment(cfg.env_name, cfg.is_atari, cfg.display, cfg.frame_skip)
+        self.env = Environment(cfg.env_name, cfg.env_mode, cfg.display, cfg.frame_skip)
         cfg.action_dim = self.env.action_size
 
         self.cfg = cfg
@@ -73,7 +73,7 @@ def main(args):
 
 if __name__ == "__main__":
     tf.app.flags.DEFINE_string("env_name", "Breakout-v0", "the name of game to be trained")
-    tf.app.flags.DEFINE_boolean("is_atari", True, "whether the env name is an atari game or ple game")
+    tf.app.flags.DEFINE_string("env_mode", "atari", "in [atari, ple, custom]")
     tf.app.flags.DEFINE_string("save_dir", "tmp_pg", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", True, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
