@@ -4,7 +4,8 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-from util.network_util import *
+from util.network_util import conv_variable, fc_variable
+from util.network_util import max_pool_2x2, conv2d, flatten_conv_layer
 from base.base_network import BaseNetwork
 
 
@@ -17,6 +18,7 @@ class Network(BaseNetwork):
         self._use_huber_loss = use_huber_loss
         self._scope = scope
         self._device = device
+
         self._create_network()
         self._prepare_loss()
         return
@@ -31,8 +33,10 @@ class Network(BaseNetwork):
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 32], name="conv1")
             h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_scale_states, W_conv1, 4) + b_conv1))
 
+            h_pool1 = max_pool_2x2(h_conv1)
+
             W_conv2, b_conv2 = conv_variable([4, 4, 32, 64], name="conv2")
-            h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv1, W_conv2, 2) + b_conv2))
+            h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_pool1, W_conv2, 2) + b_conv2))
 
             W_conv3, b_conv3 = conv_variable([3, 3, 64, 64], name="conv3")
             h_conv3 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv2, W_conv3, 1) + b_conv3))
