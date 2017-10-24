@@ -33,6 +33,7 @@ class Application(object):
             self.agent = Agent(self.cfg, self.logger)
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
             sess_config = tf.ConfigProto(
+                # intra_op_parallelism_threads=NUM_THREADS
                 log_device_placement=False,
                 allow_soft_placement=True,
                 gpu_options=gpu_options
