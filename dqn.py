@@ -72,12 +72,12 @@ def main(args):
 
 
 if __name__ == "__main__":
-    tf.app.flags.DEFINE_string("env_name", "Breakout-v0", "the name of game to be trained")
-    tf.app.flags.DEFINE_string("env_mode", "atari", "in [atari, ple, custom]")
+    tf.app.flags.DEFINE_string("env_name", "CustomFlappyBird", "the name of game to be trained")
+    tf.app.flags.DEFINE_string("env_mode", "custom", "in [atari, ple, custom]")
     tf.app.flags.DEFINE_string("save_dir", "tmp_dqn", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", True, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
-    tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
+    tf.app.flags.DEFINE_integer("replay_size", 2 * 10 ** 4, "the size of replay buffer")
 
     tf.app.flags.DEFINE_integer('random_seed', 666, 'Value of random seed')
 
@@ -88,19 +88,19 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_boolean("use_double_dqn", False, "whether use target net to estimate Q_target")
     tf.app.flags.DEFINE_integer("net_update_step", 1000, "the update step of target net")
     tf.app.flags.DEFINE_boolean("use_duel_dqn", False, "whether use duelling channel")
-    tf.app.flags.DEFINE_boolean("use_huber_loss", True, "whether use huber loss")
+    tf.app.flags.DEFINE_boolean("use_huber_loss", False, "whether use huber loss")
     tf.app.flags.DEFINE_boolean("use_rgb", False, "whether use rgb or gray image")
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
     tf.app.flags.DEFINE_integer("state_history", 4, "the number of consecutive frames as feature")
 
     tf.app.flags.DEFINE_integer("eps_step", 1 * 10 ** 6, "the step of epsilon greedy")
-    tf.app.flags.DEFINE_float("eps_hi", 1.0, "maximum epsilon greedy")
-    tf.app.flags.DEFINE_float("eps_lo", 0.1, "minimum epsilon greedy")
+    tf.app.flags.DEFINE_float("eps_hi", 0.001, "maximum epsilon greedy")
+    tf.app.flags.DEFINE_float("eps_lo", 0.001, "minimum epsilon greedy")
     tf.app.flags.DEFINE_integer("batch_size", 32, "batch_size")
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
-    tf.app.flags.DEFINE_float("lr", 0.00025, "learning rate")
+    tf.app.flags.DEFINE_float("lr", 0.000001, "learning rate")
     tf.app.flags.DEFINE_float("lr_decay", 0.99, "learning rate decay")
-    tf.app.flags.DEFINE_float("max_grad", 1.0, "maximum gradient when clipping gradients")
-    tf.app.flags.DEFINE_float("dropout", 0.5, "the keep prob of dropout")
+    tf.app.flags.DEFINE_float("max_grad", 10.0, "maximum gradient when clipping gradients")
+    tf.app.flags.DEFINE_float("dropout", 1.0, "the keep prob of dropout")
     tf.app.run()

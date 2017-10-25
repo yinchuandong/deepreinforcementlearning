@@ -69,7 +69,7 @@ class CustomFlappyBird(object):
     def _frame_step(self, input_actions):
         pygame.event.pump()
 
-        reward = 0.0
+        reward = 0.1
         terminal = False
 
         if sum(input_actions) != 1:
@@ -133,7 +133,7 @@ class CustomFlappyBird(object):
             # self._sounds['die'].play()
             terminal = True
             reward = -1.0
-            self.reset()
+            # self.reset()
 
         # draw sprites
         self._screen.blit(self._images['background'], (0, 0))
@@ -152,8 +152,10 @@ class CustomFlappyBird(object):
         if self._display_screen:
             pygame.display.update()
         self._fps_clock.tick(self._fps)
-        # print self._upper_pipes[0]['y'] + self._pip_height - int(self._basey *
-        # 0.2)
+        # print self._upper_pipes[0]['y'] + self._pip_height - int(self._basey * 0.2)
+
+        if terminal:
+            self.reset()
         return img, reward, terminal
 
     def _capture_screen(self):

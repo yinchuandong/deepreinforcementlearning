@@ -42,10 +42,12 @@ def test1():
 
 def test2():
     logger = get_logger("tmp_dqn/tmp.log")
-    process_fn = create_process_fn(mode=False, use_rgb=True)
-    env = Environment('CustomFlappyBird', mode="custom", display=False, frame_skip=3)
-    # env = Environment('FlappyBird', mode="ple", frame_skip=10, display=True)
-    # env = Environment('Breakout-v0', mode="atari", frame_skip=10, display=True)
+    use_rgb = False
+    env_mode = "custom"
+    process_fn = create_process_fn(env_mode=env_mode, use_rgb=use_rgb)
+    env = Environment('CustomFlappyBird', env_mode=env_mode, display=False, frame_skip=3)
+    # env = Environment('FlappyBird', env_mode="ple", frame_skip=10, display=True)
+    # env = Environment('Breakout-v0', env_mode="atari", frame_skip=10, display=True)
     nb_frames = 20
     env.reset()
     for i in range(nb_frames):
@@ -56,6 +58,10 @@ def test2():
         reward = np.clip(reward, -1.0, 1.0)
         o_t = process_fn(o_t)
         # print(o_t.shape, o_t.dtype)
+        if not use_rgb:
+            o_t = np.reshape(o_t, [84, 84])
+        # print(o_t)
+        # print(o_t.dtype)
         Image.fromarray(o_t).save("tmp_%d.png" % (i))
         # print(reward)
         logger.info("{}/{}/{}".format(i, reward, terminal))
@@ -77,9 +83,22 @@ def test3():
     return
 
 
+def test4():
+    w1 = 8 * 8 * 16 * 32
+    w2 = 4 * 4 * 32 * 64
+    w3 = 3 * 3 * 64 * 64
+    fc1 = 1000 * 512
+    fc2 = 512 * 2
+
+    all = w1 + w2 + w3 + fc1 + fc2
+    print(all * 4 / 1024)
+    return
+
+
 def main():
     test2()
     # test3()
+    # test4()
     return
 
 

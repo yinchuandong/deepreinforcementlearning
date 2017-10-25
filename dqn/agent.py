@@ -27,8 +27,8 @@ class Agent(BaseAgent):
         input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
         self.main_net = Network(input_shape, cfg.action_dim, cfg.use_huber_loss, "main_net", device)
-        self.target_net = Network(input_shape, cfg.action_dim, cfg.use_huber_loss, "target_net", device)
-        self.sync_target_net = self.target_net.sync_from(self.main_net)
+        # self.target_net = Network(input_shape, cfg.action_dim, cfg.use_huber_loss, "target_net", device)
+        # self.sync_target_net = self.target_net.sync_from(self.main_net)
 
         self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         for var in self.main_net.vars:
@@ -65,7 +65,6 @@ class Agent(BaseAgent):
             self.main_net.states: [state], self.main_net.dropout: 1.0
         })
         Q_value = Q_value[0]
-        action_index = 0
         if random.random() <= self.epsilon:
             action_index = random.randrange(self.cfg.action_dim)
         else:
@@ -81,10 +80,10 @@ class Agent(BaseAgent):
 
     def _update_weights(self, sess):
         minibatch = random.sample(self.replay_buffer, self.cfg.batch_size)
-        batch_state = [t[0] for t in minibatch]
+        batch_state = [t[0] / 255.0 for t in minibatch]
         batch_action = [t[1] for t in minibatch]
         batch_reward = [t[2] for t in minibatch]
-        batch_next_state = [t[3] for t in minibatch]
+        batch_next_state = [t[3] / 255.0 for t in minibatch]
         batch_done = [t[4] for t in minibatch]
         # batch_done = np.array([int(t[4]) for t in minibatch])
 
@@ -126,9 +125,9 @@ class Agent(BaseAgent):
             self.train_summary_writer.add_summary(summary, self.global_t)
             self.train_summary_writer.flush()
 
-        if self.cfg.use_double_dqn and self.global_t % self.cfg.net_update_step == 0:
-            sess.run(self.sync_target_net)
-            self.logger.info(">>>>>>>>>>>>>> update target network")
+        # if self.cfg.use_double_dqn and self.global_t % self.cfg.net_update_step == 0:
+        #     sess.run(self.sync_target_net)
+        #     self.logger.info(">>>>>>>>>>>>>> update target network")
         return
 
     def train(self, sess, env):
@@ -160,8 +159,8 @@ class Agent(BaseAgent):
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
                 epi_reward += reward
-                # if reward != 0 or done:
-                #     self.logger.info("reward {} /done{}".format(reward, done))
+                # if reward == 1.0 or done:
+                #     self.logger.info("reward={} / done={}".format(reward, done))
                 #     Image.fromarray(np.reshape(o_t1, [84, 84])) \
                 #         .save("%s/%d.png" % (cfg.log_dir, self.global_t))
                 #     Image.fromarray(img).save("%s/%d_o.png" % (cfg.log_dir, self.global_t))
@@ -173,7 +172,7 @@ class Agent(BaseAgent):
                     backup_session(saver, sess, cfg.model_dir, self.global_t, self.n_episode)
 
                 s_t = s_t1
-                if self.global_t % 100 == 0 or reward > 0.0:
+                if self.global_t % 100 == 0 or reward > 0.5:
                     self.logger.info("global_t={} / action_id={} reward={:04.2f} / epsilon={:06.4f} / Q={:04.2f}"
                                      .format(self.global_t, action, reward, self.epsilon, action_q))
 
