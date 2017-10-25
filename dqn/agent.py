@@ -49,7 +49,7 @@ class Agent(BaseAgent):
         return
 
     def add_train_summary(self, sess):
-        tf.summary.scalar("loss", self.main_net.loss)
+        # tf.summary.scalar("loss", self.main_net.loss)
         self.train_summary = tf.summary.merge_all()
         self.train_summary_writer = tf.summary.FileWriter(self.cfg.log_dir + "/train", sess.graph)
         return
@@ -80,10 +80,10 @@ class Agent(BaseAgent):
 
     def _update_weights(self, sess):
         minibatch = random.sample(self.replay_buffer, self.cfg.batch_size)
-        batch_state = [t[0] / 255.0 for t in minibatch]
+        batch_state = [t[0] for t in minibatch]
         batch_action = [t[1] for t in minibatch]
         batch_reward = [t[2] for t in minibatch]
-        batch_next_state = [t[3] / 255.0 for t in minibatch]
+        batch_next_state = [t[3] for t in minibatch]
         batch_done = [t[4] for t in minibatch]
         # batch_done = np.array([int(t[4]) for t in minibatch])
 
@@ -112,8 +112,8 @@ class Agent(BaseAgent):
             else:
                 Q_target.append(batch_reward[i] + self.cfg.gamma * np.max(Q_next[i]))
 
-        _, loss, summary = sess.run(
-            [self.apply_gradients, self.main_net.loss, self.train_summary],
+        sess.run(
+            self.apply_gradients,
             feed_dict={
                 self.main_net.states: batch_state,
                 self.main_net.actions: batch_action,
@@ -121,7 +121,8 @@ class Agent(BaseAgent):
                 self.main_net.dropout: self.cfg.dropout
             })
 
-        if self.global_t % 10 == 0:
+        if self.global_t % 50 == 0:
+            summary = sess.run(self.train_summary)
             self.train_summary_writer.add_summary(summary, self.global_t)
             self.train_summary_writer.flush()
 

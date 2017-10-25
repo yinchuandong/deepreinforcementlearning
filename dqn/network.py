@@ -45,12 +45,13 @@ class Network(BaseNetwork):
 
             h_conv3_flat_size, h_conv3_flat = flatten_conv_layer(h_conv3)
 
-            W_fc1, b_fc1 = fc_variable([h_conv3_flat_size, 512], name="fc1")
+            W_fc1, b_fc1 = fc_variable([h_conv3_flat_size, 256], name="fc1")
             h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
             h_fc1_dropout = tf.nn.dropout(h_fc1, self.dropout)
 
-            W_fc2, b_fc2 = fc_variable([512, self._action_dim], name="fc2")
+            W_fc2, b_fc2 = fc_variable([256, self._action_dim], name="fc2")
             h_fc2 = tf.matmul(h_fc1_dropout, W_fc2) + b_fc2
+
             self.Q = h_fc2
             self.Q_a = tf.argmax(self.Q, axis=1)
         return
@@ -69,7 +70,9 @@ class Network(BaseNetwork):
                 # huber loss: https://blog.openai.com/openai-baselines-dqn/
                 _loss = tf.where(tf.abs(diff) < 1.0, 0.5 * tf.square(diff), tf.abs(diff) - 0.5)
                 self.loss = tf.reduce_mean(_loss)
+                print("use: huber loss")
             else:
                 # self.loss = tf.reduce_mean(tf.abs(diff))
                 self.loss = tf.reduce_mean(tf.square(diff))
+                print("use: mse loss")
         return

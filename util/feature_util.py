@@ -26,8 +26,8 @@ def create_process_fn(env_mode="atari", use_rgb=False):
         if crop_area is not None:
             img = img.crop(crop_area)
         if not use_rgb:
-            img = img.convert('L')
-            # img = img.convert('L').point(lambda p: p > 100 and 255)
+            # img = img.convert('L')
+            img = img.convert('L').point(lambda p: p > 100 and 255)
             img = np.reshape(img, (img.size[1], img.size[0], 1))
             return img
         else:
