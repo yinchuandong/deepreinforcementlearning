@@ -26,20 +26,22 @@ class Network(BaseNetwork):
     def _create_network(self):
         with tf.device(self._device), tf.variable_scope(self._scope):
             self.states = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name="states")
-            h_scale_states = self.states / 255.0
             self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
 
             # state_dropout = tf.nn.dropout(self.states, self.dropout)
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 32], name="conv1")
-            h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_scale_states, W_conv1, 4) + b_conv1))
+            h_conv1 = tf.nn.relu(conv2d(self.states, W_conv1, 4) + b_conv1)
+            # h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(self.states, W_conv1, 4) + b_conv1))
 
             h_pool1 = max_pool_2x2(h_conv1)
 
             W_conv2, b_conv2 = conv_variable([4, 4, 32, 64], name="conv2")
-            h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_pool1, W_conv2, 2) + b_conv2))
+            h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2, 2) + b_conv2)
+            # h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_pool1, W_conv2, 2) + b_conv2))
 
             W_conv3, b_conv3 = conv_variable([3, 3, 64, 64], name="conv3")
-            h_conv3 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv2, W_conv3, 1) + b_conv3))
+            h_conv3 = tf.nn.relu(conv2d(h_conv2, W_conv3, 1) + b_conv3)
+            # h_conv3 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv2, W_conv3, 1) + b_conv3))
 
             h_conv3_flat_size, h_conv3_flat = flatten_conv_layer(h_conv3)
 
@@ -68,5 +70,6 @@ class Network(BaseNetwork):
                 _loss = tf.where(tf.abs(diff) < 1.0, 0.5 * tf.square(diff), tf.abs(diff) - 0.5)
                 self.loss = tf.reduce_mean(_loss)
             else:
-                self.loss = tf.reduce_mean(tf.abs(diff))
+                # self.loss = tf.reduce_mean(tf.abs(diff))
+                self.loss = tf.reduce_mean(tf.square(diff))
         return

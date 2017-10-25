@@ -30,8 +30,14 @@ class Agent(BaseAgent):
         self.target_net = Network(input_shape, cfg.action_dim, cfg.use_huber_loss, "target_net", device)
         self.sync_target_net = self.target_net.sync_from(self.main_net)
 
+        self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        for var in self.main_net.vars:
+            print(var)
+        self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+
         # create gradients operations
-        optimizer = tf.train.RMSPropOptimizer(cfg.lr, decay=cfg.lr_decay)
+        # optimizer = tf.train.RMSPropOptimizer(cfg.lr, decay=cfg.lr_decay)
+        optimizer = tf.train.AdamOptimizer(cfg.lr)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
         gradients_clipped = [tf.clip_by_norm(grad, cfg.max_grad) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
@@ -54,7 +60,7 @@ class Agent(BaseAgent):
         epsilon = cfg.eps_hi - span * min(timestep, cfg.eps_step)
         return epsilon
 
-    def pick_action(self, sess, state, reward, use_epsilon_greedy=True):
+    def pick_action(self, sess, state):
         Q_value = sess.run(self.main_net.Q, feed_dict={
             self.main_net.states: [state], self.main_net.dropout: 1.0
         })
@@ -67,7 +73,7 @@ class Agent(BaseAgent):
         max_q_value = np.max(Q_value)
         return action_index, max_q_value
 
-    def _perceive(self, sess, state, action, reward, next_state, done):
+    def _perceive(self, state, action, reward, next_state, done):
         self.global_t += 1
         self.epsilon = self._anneal_epsilon(self.global_t)
         self.replay_buffer.append((state, action, reward, next_state, done))
@@ -79,29 +85,42 @@ class Agent(BaseAgent):
         batch_action = [t[1] for t in minibatch]
         batch_reward = [t[2] for t in minibatch]
         batch_next_state = [t[3] for t in minibatch]
-        batch_done = np.array([int(t[4]) for t in minibatch])
+        batch_done = [t[4] for t in minibatch]
+        # batch_done = np.array([int(t[4]) for t in minibatch])
 
-        if self.cfg.use_double_dqn:
-            Q_a_next = sess.run(self.target_net.Q_a, feed_dict={
-                self.target_net.states: batch_next_state, self.target_net.dropout: 1.0
-            })
-            Q_next = sess.run(self.main_net.Q, feed_dict={
-                self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
-            })
-            double_q = Q_next[range(self.cfg.batch_size), Q_a_next]
-            Q_target = batch_reward + (1.0 - batch_done) * self.cfg.gamma * double_q
-        else:
-            Q_next = sess.run(self.main_net.Q, feed_dict={
-                self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
-            })
-            Q_target = batch_reward + (1.0 - batch_done) * self.cfg.gamma * np.max(Q_next, axis=1)
+        # if self.cfg.use_double_dqn:
+        #     Q_a_next = sess.run(self.target_net.Q_a, feed_dict={
+        #         self.target_net.states: batch_next_state, self.target_net.dropout: 1.0
+        #     })
+        #     Q_next = sess.run(self.main_net.Q, feed_dict={
+        #         self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
+        #     })
+        #     double_q = Q_next[range(self.cfg.batch_size), Q_a_next]
+        #     Q_target = batch_reward + (1.0 - batch_done) * self.cfg.gamma * double_q
+        # else:
+        #     Q_next = sess.run(self.main_net.Q, feed_dict={
+        #         self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
+        #     })
+        #     Q_target = batch_reward + (1.0 - batch_done) * self.cfg.gamma * np.max(Q_next, axis=1)
 
-        _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
-            self.main_net.states: batch_state,
-            self.main_net.actions: batch_action,
-            self.main_net.Q_target: Q_target,
-            self.main_net.dropout: self.cfg.dropout
+        Q_next = sess.run(self.main_net.Q, feed_dict={
+            self.main_net.states: batch_next_state, self.main_net.dropout: 1.0
         })
+        Q_target = []
+        for i in range(self.cfg.batch_size):
+            if batch_done[i]:
+                Q_target.append(batch_reward[i])
+            else:
+                Q_target.append(batch_reward[i] + self.cfg.gamma * np.max(Q_next[i]))
+
+        _, loss, summary = sess.run(
+            [self.apply_gradients, self.main_net.loss, self.train_summary],
+            feed_dict={
+                self.main_net.states: batch_state,
+                self.main_net.actions: batch_action,
+                self.main_net.Q_target: Q_target,
+                self.main_net.dropout: self.cfg.dropout
+            })
 
         if self.global_t % 10 == 0:
             self.train_summary_writer.add_summary(summary, self.global_t)
@@ -109,6 +128,7 @@ class Agent(BaseAgent):
 
         if self.cfg.use_double_dqn and self.global_t % self.cfg.net_update_step == 0:
             sess.run(self.sync_target_net)
+            self.logger.info(">>>>>>>>>>>>>> update target network")
         return
 
     def train(self, sess, env):
@@ -131,10 +151,10 @@ class Agent(BaseAgent):
             o_t = process_fn(o_t)
             s_t = np.concatenate([o_t] * self.cfg.state_history, axis=2)
             done = False
-
             epi_reward = 0.0
+
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
-                action, action_q = self.pick_action(sess, s_t, reward=0.0, use_epsilon_greedy=True)
+                action, action_q = self.pick_action(sess, s_t)
                 o_t1, reward, done = env.step(action)
                 o_t1 = process_fn(o_t1)
                 s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
@@ -146,7 +166,7 @@ class Agent(BaseAgent):
                 #         .save("%s/%d.png" % (cfg.log_dir, self.global_t))
                 #     Image.fromarray(img).save("%s/%d_o.png" % (cfg.log_dir, self.global_t))
 
-                self._perceive(sess, s_t, action, reward, s_t1, done)
+                self._perceive(s_t, action, reward, s_t1, done)
                 if len(self.replay_buffer) > self.cfg.batch_size * 4:
                     self._update_weights(sess)
                 if self.global_t % 100000 == 0:
