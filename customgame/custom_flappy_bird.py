@@ -69,7 +69,7 @@ class CustomFlappyBird(object):
     def _frame_step(self, input_actions):
         pygame.event.pump()
 
-        reward = 0.1
+        reward = 0.0
         terminal = False
 
         if sum(input_actions) != 1:
