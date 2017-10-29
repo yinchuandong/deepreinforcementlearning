@@ -28,8 +28,14 @@ class Agent(BaseAgent):
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
         self.main_net = Network(input_shape, cfg.action_dim, "main_net", device)
 
+        self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        for var in self.main_net.vars:
+            print(var)
+        self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+
         # create gradients operations
         optimizer = tf.train.RMSPropOptimizer(cfg.lr, decay=cfg.lr_decay)
+        optimizer = tf.train.AdamOptimizer(cfg.lr)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
         gradients_clipped = [tf.clip_by_norm(grad, cfg.max_grad) for grad in gradients]
         self.apply_gradients = optimizer.apply_gradients(zip(gradients_clipped, self.main_net.vars))
@@ -40,7 +46,7 @@ class Agent(BaseAgent):
         return
 
     def add_train_summary(self, sess):
-        tf.summary.scalar("loss", self.main_net.loss)
+        # tf.summary.scalar("loss", self.main_net.loss)
         self.train_summary = tf.summary.merge_all()
         self.train_summary_writer = tf.summary.FileWriter(self.cfg.log_dir + "/train", sess.graph)
         return
@@ -71,13 +77,13 @@ class Agent(BaseAgent):
             batch_state.append(s)
             batch_action.append(a)
             batch_reward.append(r)
-        _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
+        _, loss = sess.run([self.apply_gradients, self.main_net.loss], feed_dict={
             self.main_net.states: batch_state,
             self.main_net.actions: batch_action,
             self.main_net.rewards: batch_reward,
             self.main_net.dropout: self.cfg.dropout,
         })
-        return loss, summary
+        return loss
 
     def _run_episode(self, sess, epi_buffer):
         n_batches = (len(epi_buffer) + self.cfg.batch_size - 1) // self.cfg.batch_size
@@ -91,7 +97,7 @@ class Agent(BaseAgent):
         epi_buffer = zip(states, actions, discounted_rewards)
 
         for i, minibatch in enumerate(minibatches(epi_buffer, self.cfg.batch_size, False)):
-            train_loss, _ = self._update_weights(sess, minibatch)
+            train_loss = self._update_weights(sess, minibatch)
             prog.update(i + 1, [("train_loss", train_loss)])
         return
 
