@@ -95,10 +95,32 @@ def test4():
     return
 
 
+def _discount_reward(rewards, gamma=0.99):
+    discounted_r = np.zeros_like(rewards, dtype=np.float32)
+    running_add = 0
+    for t in reversed(range(len(rewards))):
+        # if rewards[t] < 0:  # for specific game
+        #     running_add = 0
+        running_add = rewards[t] + running_add * gamma
+        discounted_r[t] = running_add
+
+    # discounted_r = (discounted_r - discounted_r.mean()) / discounted_r.std()
+    return discounted_r
+
+
+def test5():
+
+    rewards = [0, 0, 0, 1]
+    d_rewards = _discount_reward(rewards)
+    print(d_rewards)
+    return
+
+
 def main():
-    test2()
+    # test2()
     # test3()
     # test4()
+    test5()
     return
 
 

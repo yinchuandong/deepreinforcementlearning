@@ -23,27 +23,33 @@ class Network(BaseNetwork):
     def _create_network(self):
         with tf.device(self._device), tf.variable_scope(self._scope):
             self.states = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name="states")
-            h_scale_states = self.states / 255.0
             self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
 
             # state_dropout = tf.nn.dropout(self.states, self.dropout)
-            W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 32], name="conv1")
-            h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_scale_states, W_conv1, 4) + b_conv1))
+            W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 16], name="conv1")
+            h_conv1 = tf.nn.relu(conv2d(self.states, W_conv1, 4) + b_conv1)
+            # h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(self.states, W_conv1, 4) + b_conv1))
 
-            W_conv2, b_conv2 = conv_variable([4, 4, 32, 64], name="conv2")
-            h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv1, W_conv2, 2) + b_conv2))
+            # h_pool1 = max_pool_2x2(h_conv1)
 
-            W_conv3, b_conv3 = conv_variable([3, 3, 64, 64], name="conv3")
-            h_conv3 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv2, W_conv3, 1) + b_conv3))
+            W_conv2, b_conv2 = conv_variable([4, 4, 16, 32], name="conv2")
+            h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2, 2) + b_conv2)
+            # h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_pool1, W_conv2, 2) + b_conv2))
 
-            h_conv3_flat_size, h_conv3_flat = flatten_conv_layer(h_conv3)
+            # W_conv3, b_conv3 = conv_variable([3, 3, 64, 64], name="conv3")
+            # h_conv3 = tf.nn.relu(conv2d(h_conv2, W_conv3, 1) + b_conv3)
+            # h_conv3 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv2, W_conv3, 1) + b_conv3))
 
-            W_fc1, b_fc1 = fc_variable([h_conv3_flat_size, 512], name="fc1")
-            h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
+            h_conv_flat_size, h_conv_flat = flatten_conv_layer(h_conv2)
+
+            W_fc1, b_fc1 = fc_variable([h_conv_flat_size, 256], name="fc1")
+            h_fc1 = tf.nn.relu(tf.matmul(h_conv_flat, W_fc1) + b_fc1)
+
             h_fc1_dropout = tf.nn.dropout(h_fc1, self.dropout)
 
-            W_fc2, b_fc2 = fc_variable([512, self._action_dim], name="fc2")
+            W_fc2, b_fc2 = fc_variable([256, self._action_dim], name="fc2")
             h_fc2 = tf.nn.softmax(tf.matmul(h_fc1_dropout, W_fc2) + b_fc2)
+
             self.pi = h_fc2
         return
 

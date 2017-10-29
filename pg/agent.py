@@ -4,8 +4,6 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
-import random
-from collections import deque
 from PIL import Image
 
 from base.base_agent import BaseAgent
@@ -51,7 +49,9 @@ class Agent(BaseAgent):
         pi_out = sess.run(self.main_net.pi, feed_dict={
             self.main_net.states: [state], self.main_net.dropout: 1.0
         })[0]
-        return np.random.choice(range(len(pi_out)), p=pi_out)
+
+        action_idx = np.random.choice(range(len(pi_out)), p=pi_out)
+        return action_idx
 
     def _discount_reward(self, rewards, gamma=0.99):
         discounted_r = np.zeros_like(rewards, dtype=np.float32)
@@ -71,11 +71,10 @@ class Agent(BaseAgent):
             batch_state.append(s)
             batch_action.append(a)
             batch_reward.append(r)
-        batch_discounted_reward = self._discount_reward(batch_reward, self.cfg.gamma)
         _, loss, summary = sess.run([self.apply_gradients, self.main_net.loss, self.train_summary], feed_dict={
             self.main_net.states: batch_state,
             self.main_net.actions: batch_action,
-            self.main_net.rewards: batch_discounted_reward,
+            self.main_net.rewards: batch_reward,
             self.main_net.dropout: self.cfg.dropout,
         })
         return loss, summary
@@ -83,14 +82,22 @@ class Agent(BaseAgent):
     def _run_episode(self, sess, epi_buffer):
         n_batches = (len(epi_buffer) + self.cfg.batch_size - 1) // self.cfg.batch_size
         prog = Progbar(target=n_batches)
+        states, actions, rewards = [], [], []
+        for s, a, r in epi_buffer:
+            states.append(s)
+            actions.append(a)
+            rewards.append(r)
+        discounted_rewards = self._discount_reward(rewards, self.cfg.gamma)
+        epi_buffer = zip(states, actions, discounted_rewards)
 
         for i, minibatch in enumerate(minibatches(epi_buffer, self.cfg.batch_size, False)):
             train_loss, _ = self._update_weights(sess, minibatch)
             prog.update(i + 1, [("train_loss", train_loss)])
         return
 
-    def train(self, saver, sess, env):
+    def train(self, sess, env):
         cfg = self.cfg
+        saver = tf.train.Saver(tf.global_variables())
         process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
 
         # summary
@@ -122,7 +129,7 @@ class Agent(BaseAgent):
 
                 s_t = s_t1
                 if self.global_t % 100 == 0 or reward > 0.0:
-                    self.logger.info("global_t={} / action_id={} reward={:04.2f} / pi={}"
+                    self.logger.info("global_t={} / action_idx={} reward={:04.2f} / pi={}"
                                      .format(self.global_t, action, reward, str(action)))
 
             # train per episode

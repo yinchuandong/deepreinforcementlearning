@@ -133,7 +133,7 @@ class Agent(BaseAgent):
 
     def train(self, sess, env):
         cfg = self.cfg
-        saver = tf.train.Saver(var_list=self.main_net.vars)
+        saver = tf.train.Saver(tf.global_variables())
         process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
 
         # summary

@@ -31,7 +31,6 @@ class Application(object):
         self.graph = tf.Graph()
         with self.graph.as_default():
             self.agent = Agent(self.cfg, self.logger)
-            self.saver = tf.train.Saver()
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
             sess_config = tf.ConfigProto(
                 log_device_placement=False,
@@ -49,7 +48,7 @@ class Application(object):
 
     def train(self):
         with self.graph.as_default():
-            self.agent.train(self.saver, self.sess, self.env)
+            self.agent.train(self.sess, self.env)
         return
 
     def run(self):
@@ -72,8 +71,8 @@ def main(args):
 
 
 if __name__ == "__main__":
-    tf.app.flags.DEFINE_string("env_name", "Breakout-v0", "the name of game to be trained")
-    tf.app.flags.DEFINE_string("env_mode", "atari", "in [atari, ple, custom]")
+    tf.app.flags.DEFINE_string("env_name", "CustomFlappyBird", "the name of game to be trained")
+    tf.app.flags.DEFINE_string("env_mode", "custom", "in [atari, ple, custom]")
     tf.app.flags.DEFINE_string("save_dir", "tmp_pg", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", True, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
@@ -85,7 +84,6 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_boolean("display", True, "whether display the enviroment")
     tf.app.flags.DEFINE_integer("frame_skip", 1, "the number of skipping frames")
 
-    tf.app.flags.DEFINE_boolean("use_duel_dqn", False, "whether use duelling channel")
     tf.app.flags.DEFINE_boolean("use_rgb", False, "whether use rgb or gray image")
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
     tf.app.flags.DEFINE_integer("state_history", 4, "the number of consecutive frames as feature")
@@ -93,8 +91,8 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_integer("batch_size", 32, "batch_size")
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
-    tf.app.flags.DEFINE_float("lr", 0.00025, "learning rate")
+    tf.app.flags.DEFINE_float("lr", 0.0001, "learning rate")
     tf.app.flags.DEFINE_float("lr_decay", 0.99, "learning rate decay")
-    tf.app.flags.DEFINE_float("max_grad", 1.0, "maximum gradient when clipping gradients")
-    tf.app.flags.DEFINE_float("dropout", 0.5, "the keep prob of dropout")
+    tf.app.flags.DEFINE_float("max_grad", 10.0, "maximum gradient when clipping gradients")
+    tf.app.flags.DEFINE_float("dropout", 1.0, "the keep prob of dropout")
     tf.app.run()

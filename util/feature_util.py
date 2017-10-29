@@ -27,8 +27,8 @@ def create_process_fn(env_mode="atari", use_rgb=False):
             img = img.crop(crop_area)
         if not use_rgb:
             # img = img.convert('L')
-            # img = img.convert('L').point(lambda p: p > 100 and 255)
-            img = img.convert('L').point(lambda p: p > 100)
+            img = img.convert('L').point(lambda p: p > 100 and 255)
+            # img = img.convert('L').point(lambda p: p > 100)
             img = np.reshape(img, (img.size[1], img.size[0], 1))
             return img.astype(np.uint8)
         else:
