@@ -48,9 +48,10 @@ class Network(BaseNetwork):
             h_fc1_dropout = tf.nn.dropout(h_fc1, self.dropout)
 
             W_fc2, b_fc2 = fc_variable([256, self._action_dim], name="fc2")
-            h_fc2 = tf.nn.softmax(tf.matmul(h_fc1_dropout, W_fc2) + b_fc2)
+            h_fc2 = tf.matmul(h_fc1_dropout, W_fc2) + b_fc2
 
-            self.pi = h_fc2
+            self.logits = h_fc2
+            self.pi = tf.nn.softmax(self.logits)
         return
 
     def _prepare_loss(self):
@@ -59,7 +60,8 @@ class Network(BaseNetwork):
             self.rewards = tf.placeholder(tf.float32, shape=[None], name="rewards")
 
             action_onehot = tf.one_hot(self.actions, self._action_dim)
-            log_pi = tf.log(tf.clip_by_value(self.pi, 1e-10, 1.0))
-            _loss = -tf.reduce_sum(log_pi * action_onehot, axis=1) * self.rewards
+            _loss = self.rewards * tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=action_onehot)
+            # log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
+            # _loss = -tf.reduce_sum(log_pi * action_onehot, axis=1) * self.rewards
             self.loss = tf.reduce_mean(_loss)
         return

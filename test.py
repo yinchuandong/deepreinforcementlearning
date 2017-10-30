@@ -104,7 +104,8 @@ def _discount_reward(rewards, gamma=0.99):
         running_add = rewards[t] + running_add * gamma
         discounted_r[t] = running_add
 
-    # discounted_r = (discounted_r - discounted_r.mean()) / discounted_r.std()
+    discounted_r -= discounted_r.mean()
+    discounted_r /= discounted_r.std()
     return discounted_r
 
 
