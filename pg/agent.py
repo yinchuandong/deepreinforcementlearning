@@ -79,7 +79,8 @@ class Agent(BaseAgent):
             running_add = rewards[t] + running_add * gamma
             discounted_r[t] = running_add
 
-        discounted_r = (discounted_r - discounted_r.mean()) / discounted_r.std()
+        discounted_r -= discounted_r.mean()
+        discounted_r /= discounted_r.std()
         return discounted_r
 
     def _update_weights(self, sess, minibatch):
