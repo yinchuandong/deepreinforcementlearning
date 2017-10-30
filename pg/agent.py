@@ -68,7 +68,7 @@ class Agent(BaseAgent):
             running_add = rewards[t] + running_add * gamma
             discounted_r[t] = running_add
 
-        # discounted_r = (discounted_r - discounted_r.mean()) / discounted_r.std()
+        discounted_r = (discounted_r - discounted_r.mean()) / discounted_r.std()
         return discounted_r
 
     def _update_weights(self, sess, minibatch):
@@ -96,9 +96,16 @@ class Agent(BaseAgent):
         discounted_rewards = self._discount_reward(rewards, self.cfg.gamma)
         epi_buffer = zip(states, actions, discounted_rewards)
 
+        # print(discounted_rewards)
+        # print(np.amax(states), np.amin(states))
+        # print(actions)
+        # print(len(actions))
+        # import sys
+        # sys.exit()
         for i, minibatch in enumerate(minibatches(epi_buffer, self.cfg.batch_size, False)):
             train_loss = self._update_weights(sess, minibatch)
             prog.update(i + 1, [("train_loss", train_loss)])
+        # sys.exit()
         return
 
     def train(self, sess, env):
@@ -138,6 +145,9 @@ class Agent(BaseAgent):
                     self.logger.info("global_t={} / action_idx={} reward={:04.2f} / pi={}"
                                      .format(self.global_t, action, reward, str(action)))
 
+            if self.stop_requested:
+                # skip the uncomplete episode
+                break
             # train per episode
             self._run_episode(sess, epi_buffer)
             epi_buffer = []
