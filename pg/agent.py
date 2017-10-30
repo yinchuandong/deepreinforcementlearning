@@ -54,14 +54,14 @@ class Agent(BaseAgent):
 
     def pick_action(self, sess, state):
         if random.random() < self.epsilon:
-            # action_idx = random.randrange(self.cfg.action_dim)
-            action_idx = 0
+            action_idx = random.randrange(self.cfg.action_dim)
+            # action_idx = 0
         else:
             pi_out = sess.run(self.main_net.pi, feed_dict={
                 self.main_net.states: [state], self.main_net.dropout: 1.0
             })[0]
             action_idx = np.random.choice(range(len(pi_out)), p=pi_out)
-        self._anneal_epsilon(self.global_t)
+        self.epsilon = self._anneal_epsilon(self.global_t)
         return action_idx
 
     def _anneal_epsilon(self, timestep):
