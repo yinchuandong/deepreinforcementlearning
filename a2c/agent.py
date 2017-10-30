@@ -143,6 +143,9 @@ class Agent(BaseAgent):
 
             epi_buffer = []
             epi_reward = 0.0
+            # TODO: need to check the steps to train actor-critic
+            # A3C updates every 5 steps
+            # thusly, the non-terminated reward needs to be fetched from critic-network
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 self.global_t += 1
                 action = self.pick_action(sess, s_t)

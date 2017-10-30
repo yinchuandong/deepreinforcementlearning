@@ -25,20 +25,11 @@ class Network(BaseNetwork):
             self.states = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name="states")
             self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
 
-            # state_dropout = tf.nn.dropout(self.states, self.dropout)
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 16], name="conv1")
             h_conv1 = tf.nn.relu(conv2d(self.states, W_conv1, 4) + b_conv1)
-            # h_conv1 = tf.nn.relu(tf.layers.batch_normalization(conv2d(self.states, W_conv1, 4) + b_conv1))
-
-            # h_pool1 = max_pool_2x2(h_conv1)
 
             W_conv2, b_conv2 = conv_variable([4, 4, 16, 32], name="conv2")
             h_conv2 = tf.nn.relu(conv2d(h_conv1, W_conv2, 2) + b_conv2)
-            # h_conv2 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_pool1, W_conv2, 2) + b_conv2))
-
-            # W_conv3, b_conv3 = conv_variable([3, 3, 64, 64], name="conv3")
-            # h_conv3 = tf.nn.relu(conv2d(h_conv2, W_conv3, 1) + b_conv3)
-            # h_conv3 = tf.nn.relu(tf.layers.batch_normalization(conv2d(h_conv2, W_conv3, 1) + b_conv3))
 
             h_conv_flat_size, h_conv_flat = flatten_conv_layer(h_conv2)
 
@@ -47,21 +38,25 @@ class Network(BaseNetwork):
 
             h_fc1_dropout = tf.nn.dropout(h_fc1, self.dropout)
 
-            W_fc2, b_fc2 = fc_variable([256, self._action_dim], name="fc2")
-            h_fc2 = tf.matmul(h_fc1_dropout, W_fc2) + b_fc2
+            W_pi, b_pi = fc_variable([256, self._action_dim], name="pi")
+            self.pi = tf.softmax(tf.matmul(h_fc1_dropout, W_pi) + b_pi)
 
-            self.logits = h_fc2
-            self.pi = tf.nn.softmax(self.logits)
+            W_v, b_v = fc_variable([256, 1], name="v")
+            self.v = tf.matmul(h_fc1_dropout, W_v) + b_v
         return
 
     def _prepare_loss(self):
         with tf.name_scope(self._scope):
-            self.actions = tf.placeholder(tf.int64, shape=[None], name="actions")
+            self.actions = tf.placeholder(tf.int32, shape=[None], name="actions")
             self.returns = tf.placeholder(tf.float32, shape=[None], name="returns")
 
+            adv = self.returns - self.v
             action_onehot = tf.one_hot(self.actions, self._action_dim)
-            _loss = self.returns * tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=action_onehot)
-            # log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
-            # _loss = -tf.reduce_sum(log_pi * action_onehot, axis=1) * self.returns
-            self.loss = tf.reduce_mean(_loss)
+
+            log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
+            pi_loss = tf.reduce_sum(log_pi * action_onehot, axis=1) * adv
+            pi_loss = -tf.reduce_sum(pi_loss)
+
+            v_loss = 0.5 * tf.nn.l2_loss(adv)
+            self.loss = pi_loss + v_loss
         return
