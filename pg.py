@@ -76,7 +76,6 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_string("save_dir", "tmp_pg", "save models and logs")
     tf.app.flags.DEFINE_boolean("use_gpu", True, "use gpu or cpu to train")
     tf.app.flags.DEFINE_integer("max_train_step", 10 * 10 ** 7, "max steps to train")
-    tf.app.flags.DEFINE_integer("replay_size", 1 * 10 ** 5, "the size of replay buffer")
 
     tf.app.flags.DEFINE_integer('random_seed', 666, 'Value of random seed')
 
@@ -88,7 +87,10 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
     tf.app.flags.DEFINE_integer("state_history", 4, "the number of consecutive frames as feature")
 
-    tf.app.flags.DEFINE_integer("batch_size", 32, "batch_size")
+    tf.app.flags.DEFINE_integer("eps_step", 1 * 10 ** 5, "the step of epsilon greedy")
+    tf.app.flags.DEFINE_float("eps_hi", 0.5, "maximum epsilon greedy")
+    tf.app.flags.DEFINE_float("eps_lo", 0.001, "minimum epsilon greedy")
+    tf.app.flags.DEFINE_integer("batch_size", 50, "batch_size")
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
     tf.app.flags.DEFINE_float("lr", 0.0001, "learning rate")

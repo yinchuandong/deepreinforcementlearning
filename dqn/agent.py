@@ -61,16 +61,17 @@ class Agent(BaseAgent):
         return epsilon
 
     def pick_action(self, sess, state):
-        Q_value = sess.run(self.main_net.Q, feed_dict={
-            self.main_net.states: [state], self.main_net.dropout: 1.0
-        })
-        Q_value = Q_value[0]
         if random.random() <= self.epsilon:
-            action_index = random.randrange(self.cfg.action_dim)
+            action_idx = random.randrange(self.cfg.action_dim)
+            max_q_value = 0.0
         else:
-            action_index = np.argmax(Q_value)
-        max_q_value = np.max(Q_value)
-        return action_index, max_q_value
+            Q_value = sess.run(self.main_net.Q, feed_dict={
+                self.main_net.states: [state], self.main_net.dropout: 1.0
+            })
+            Q_value = Q_value[0]
+            action_idx = np.argmax(Q_value)
+            max_q_value = np.max(Q_value)
+        return action_idx, max_q_value
 
     def _perceive(self, state, action, reward, next_state, done):
         self.global_t += 1

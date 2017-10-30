@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
+import random
 from PIL import Image
 
 from base.base_agent import BaseAgent
@@ -52,12 +53,22 @@ class Agent(BaseAgent):
         return
 
     def pick_action(self, sess, state):
-        pi_out = sess.run(self.main_net.pi, feed_dict={
-            self.main_net.states: [state], self.main_net.dropout: 1.0
-        })[0]
-
-        action_idx = np.random.choice(range(len(pi_out)), p=pi_out)
+        if random.random() < self.epsilon:
+            # action_idx = random.randrange(self.cfg.action_dim)
+            action_idx = 0
+        else:
+            pi_out = sess.run(self.main_net.pi, feed_dict={
+                self.main_net.states: [state], self.main_net.dropout: 1.0
+            })[0]
+            action_idx = np.random.choice(range(len(pi_out)), p=pi_out)
+        self._anneal_epsilon(self.global_t)
         return action_idx
+
+    def _anneal_epsilon(self, timestep):
+        cfg = self.cfg
+        span = float(cfg.eps_hi - cfg.eps_lo) / float(cfg.eps_step)
+        epsilon = cfg.eps_hi - span * min(timestep, cfg.eps_step)
+        return epsilon
 
     def _discount_reward(self, rewards, gamma=0.99):
         discounted_r = np.zeros_like(rewards, dtype=np.float32)
@@ -116,6 +127,7 @@ class Agent(BaseAgent):
         # summary
         self.add_train_summary(sess)
         self.global_t, self.n_episode = restore_session(saver, sess, cfg.model_dir)
+        self.epsilon = self._anneal_epsilon(self.global_t)
 
         epi_rewards = []
         best_epi_reward = 0.0
@@ -142,8 +154,8 @@ class Agent(BaseAgent):
 
                 s_t = s_t1
                 if self.global_t % 100 == 0 or reward > 0.0:
-                    self.logger.info("global_t={} / action_idx={} reward={:04.2f} / pi={}"
-                                     .format(self.global_t, action, reward, str(action)))
+                    self.logger.info("global_t={} / action_idx={} reward={:04.2f} / epsilon={:06.4f} / pi={}"
+                                     .format(self.global_t, action, reward, self.epsilon, str(action)))
 
             if self.stop_requested:
                 # skip the uncomplete episode
