@@ -24,12 +24,8 @@ class Application(object):
         self.logger = get_logger(cfg.log_filename)
 
         # atari game
-        # self.env = Environment(cfg.env_name, cfg.env_mode, cfg.display, cfg.frame_skip)
-        # cfg.action_dim = self.env.action_size
-        import gym
-        self.env = gym.make('CartPole-v0').unwrapped
-        cfg.action_dim = 2
-        cfg.state_dim = 4
+        self.env = Environment(cfg.env_name, cfg.env_mode, cfg.display, cfg.frame_skip)
+        cfg.action_dim = self.env.action_size
 
         self.cfg = cfg
         self.graph = tf.Graph()

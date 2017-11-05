@@ -151,7 +151,7 @@ class CustomFlappyBird(object):
 
         if self._display_screen:
             pygame.display.update()
-        self._fps_clock.tick(self._fps)
+            self._fps_clock.tick(self._fps)
         # print self._upper_pipes[0]['y'] + self._pip_height - int(self._basey * 0.2)
 
         if terminal:

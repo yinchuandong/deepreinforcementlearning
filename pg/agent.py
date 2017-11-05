@@ -24,9 +24,8 @@ class Agent(BaseAgent):
         self.logger = logger
 
         # create networks
-        # state_chn = cfg.state_history * (3 if cfg.use_rgb else 1)
-        # input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
-        input_shape = [cfg.state_dim]  # for cartpole
+        state_chn = cfg.state_history * (3 if cfg.use_rgb else 1)
+        input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
         self.main_net = Network(input_shape, cfg.action_dim, "main_net", device)
 
@@ -113,7 +112,7 @@ class Agent(BaseAgent):
     def train(self, sess, env):
         cfg = self.cfg
         saver = tf.train.Saver(tf.global_variables())
-        # process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
+        process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
 
         # summary
         self.add_train_summary(sess)
@@ -126,9 +125,8 @@ class Agent(BaseAgent):
             self.logger.info("\n-------new epoch: {}----------".format(self.n_episode))
 
             o_t = env.reset()
-            # o_t = process_fn(o_t)
-            # s_t = np.concatenate([o_t] * self.cfg.state_history, axis=2)
-            s_t = o_t
+            o_t = process_fn(o_t)
+            s_t = np.concatenate([o_t] * self.cfg.state_history, axis=2)
             done = False
 
             epi_buffer = []
@@ -136,12 +134,9 @@ class Agent(BaseAgent):
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 self.global_t += 1
                 action, pi_out = self.pick_action(sess, s_t)
-                # o_t1, reward, done = env.step(action)
-                env.render()
-                o_t1, reward, done, _ = env.step(action)
-                # o_t1 = process_fn(o_t1)
-                # s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
-                s_t1 = o_t1
+                o_t1, reward, done = env.step(action)
+                o_t1 = process_fn(o_t1)
+                s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
 
                 epi_buffer.append((s_t, action, reward))
                 epi_reward += reward

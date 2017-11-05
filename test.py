@@ -59,7 +59,7 @@ def test2():
         o_t = process_fn(o_t)
         # print(o_t.shape, o_t.dtype)
         if not use_rgb:
-            o_t = np.reshape(o_t, [84, 84])
+            o_t = np.reshape(o_t, [84, 84]) * 255
         # print(o_t)
         # print(o_t.dtype)
         Image.fromarray(o_t).save("tmp_%d.png" % (i))
@@ -137,11 +137,11 @@ def test6():
 
 
 def main():
-    # test2()
+    test2()
     # test3()
     # test4()
     # test5()
-    test6()
+    # test6()
     return
 
 
