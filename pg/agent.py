@@ -24,8 +24,9 @@ class Agent(BaseAgent):
         self.logger = logger
 
         # create networks
-        state_chn = cfg.state_history * (3 if cfg.use_rgb else 1)
-        input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
+        # state_chn = cfg.state_history * (3 if cfg.use_rgb else 1)
+        # input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
+        input_shape = [cfg.state_dim]  # for cartpole
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
         self.main_net = Network(input_shape, cfg.action_dim, "main_net", device)
 
@@ -35,7 +36,7 @@ class Agent(BaseAgent):
         self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
         # create gradients operations
-        optimizer = tf.train.RMSPropOptimizer(cfg.lr, decay=cfg.lr_decay)
+        # optimizer = tf.train.RMSPropOptimizer(cfg.lr, decay=cfg.lr_decay)
         optimizer = tf.train.AdamOptimizer(cfg.lr)
         gradients = tf.gradients(self.main_net.loss, self.main_net.vars)
         gradients_clipped = [tf.clip_by_norm(grad, cfg.max_grad) for grad in gradients]
@@ -53,22 +54,11 @@ class Agent(BaseAgent):
         return
 
     def pick_action(self, sess, state):
-        if random.random() < self.epsilon:
-            action_idx = random.randrange(self.cfg.action_dim)
-            # action_idx = 0
-        else:
-            pi_out = sess.run(self.main_net.pi, feed_dict={
-                self.main_net.states: [state], self.main_net.dropout: 1.0
-            })[0]
-            action_idx = np.random.choice(range(len(pi_out)), p=pi_out)
-        self.epsilon = self._anneal_epsilon(self.global_t)
-        return action_idx
-
-    def _anneal_epsilon(self, timestep):
-        cfg = self.cfg
-        span = float(cfg.eps_hi - cfg.eps_lo) / float(cfg.eps_step)
-        epsilon = cfg.eps_hi - span * min(timestep, cfg.eps_step)
-        return epsilon
+        pi_out = sess.run(self.main_net.pi, feed_dict={
+            self.main_net.states: [state], self.main_net.dropout: 1.0
+        })[0]
+        action_idx = np.random.choice(range(self.cfg.action_dim), p=pi_out)
+        return action_idx, pi_out
 
     def _discount_reward(self, rewards, gamma=0.99):
         discounted_r = np.zeros_like(rewards, dtype=np.float32)
@@ -79,8 +69,8 @@ class Agent(BaseAgent):
             running_add = rewards[t] + running_add * gamma
             discounted_r[t] = running_add
 
-        # discounted_r -= discounted_r.mean()
-        # discounted_r /= discounted_r.std()
+        discounted_r -= discounted_r.mean()
+        discounted_r /= discounted_r.std()
         return discounted_r
 
     def _update_weights(self, sess, minibatch):
@@ -123,12 +113,11 @@ class Agent(BaseAgent):
     def train(self, sess, env):
         cfg = self.cfg
         saver = tf.train.Saver(tf.global_variables())
-        process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
+        # process_fn = create_process_fn(cfg.env_mode, cfg.use_rgb)
 
         # summary
         self.add_train_summary(sess)
         self.global_t, self.n_episode = restore_session(saver, sess, cfg.model_dir)
-        self.epsilon = self._anneal_epsilon(self.global_t)
 
         epi_rewards = []
         best_epi_reward = 0.0
@@ -137,42 +126,46 @@ class Agent(BaseAgent):
             self.logger.info("\n-------new epoch: {}----------".format(self.n_episode))
 
             o_t = env.reset()
-            o_t = process_fn(o_t)
-            s_t = np.concatenate([o_t] * self.cfg.state_history, axis=2)
+            # o_t = process_fn(o_t)
+            # s_t = np.concatenate([o_t] * self.cfg.state_history, axis=2)
+            s_t = o_t
             done = False
 
             epi_buffer = []
             epi_reward = 0.0
             while not done and not self.stop_requested and self.global_t < cfg.max_train_step:
                 self.global_t += 1
-                action = self.pick_action(sess, s_t)
-                o_t1, reward, done = env.step(action)
-                o_t1 = process_fn(o_t1)
-                s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
+                action, pi_out = self.pick_action(sess, s_t)
+                # o_t1, reward, done = env.step(action)
+                env.render()
+                o_t1, reward, done, _ = env.step(action)
+                # o_t1 = process_fn(o_t1)
+                # s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
+                s_t1 = o_t1
 
                 epi_buffer.append((s_t, action, reward))
                 epi_reward += reward
 
                 s_t = s_t1
-                if self.global_t % 100 == 0 or reward > 0.0:
-                    self.logger.info("global_t={} / action_idx={} reward={:04.2f} / epsilon={:06.4f} / pi={}"
-                                     .format(self.global_t, action, reward, self.epsilon, str(action)))
+                # if self.global_t % 100 == 0 or reward > 0.0:
+                if self.global_t % 100 == 0:
+                    self.logger.info("global_t={} / action_idx={} / reward={:04.2f} / pi={}"
+                                     .format(self.global_t, action, reward, str(pi_out)))
 
             if self.stop_requested:
                 # skip the uncomplete episode
                 break
             # train per episode
             self._run_episode(sess, epi_buffer)
-            epi_buffer = []
 
             if self.global_t % 100000 == 0:
                 backup_session(saver, sess, cfg.model_dir, self.global_t, self.n_episode)
 
             # save the episode reward
             epi_rewards.append(epi_reward)
-            if len(epi_rewards) % 100 == 0:
-                self.logger.info("\n---episode={} / avg_epi_reward={:04.2f}".
-                                 format(self.n_episode, np.mean(epi_rewards)))
+            if len(epi_rewards) % 10 == 0:
+                self.logger.info("\n---episode={} / epi_buffer={} / avg_epi_reward={:04.2f}".
+                                 format(self.n_episode, len(epi_buffer), np.mean(epi_rewards)))
                 epi_rewards = []
 
             if epi_reward > best_epi_reward:

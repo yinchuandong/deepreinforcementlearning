@@ -117,11 +117,31 @@ def test5():
     return
 
 
+def test6():
+    import gym
+    env = gym.make('CartPole-v0')
+    env.seed(1)     # reproducible, general Policy gradient has high variance
+    env = env.unwrapped
+
+    print(env.action_space)
+    print(env.observation_space)
+    print(env.observation_space.high)
+    print(env.observation_space.low)
+
+    o_t = env.reset()
+    for _ in range(1):
+        env.render()
+        o_t1, reward, done, info = env.step(1)
+        print(o_t1)
+    return
+
+
 def main():
     # test2()
     # test3()
     # test4()
-    test5()
+    # test5()
+    test6()
     return
 
 

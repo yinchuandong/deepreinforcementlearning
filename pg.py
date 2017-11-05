@@ -24,8 +24,12 @@ class Application(object):
         self.logger = get_logger(cfg.log_filename)
 
         # atari game
-        self.env = Environment(cfg.env_name, cfg.env_mode, cfg.display, cfg.frame_skip)
-        cfg.action_dim = self.env.action_size
+        # self.env = Environment(cfg.env_name, cfg.env_mode, cfg.display, cfg.frame_skip)
+        # cfg.action_dim = self.env.action_size
+        import gym
+        self.env = gym.make('CartPole-v0').unwrapped
+        cfg.action_dim = 2
+        cfg.state_dim = 4
 
         self.cfg = cfg
         self.graph = tf.Graph()
@@ -87,13 +91,10 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_integer("state_dim", 84, "the width and height of state")
     tf.app.flags.DEFINE_integer("state_history", 4, "the number of consecutive frames as feature")
 
-    tf.app.flags.DEFINE_integer("eps_step", 1 * 10 ** 5, "the step of epsilon greedy")
-    tf.app.flags.DEFINE_float("eps_hi", 0.5, "maximum epsilon greedy")
-    tf.app.flags.DEFINE_float("eps_lo", 0.001, "minimum epsilon greedy")
-    tf.app.flags.DEFINE_integer("batch_size", 50, "batch_size")
+    tf.app.flags.DEFINE_integer("batch_size", 200, "batch_size")
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
-    tf.app.flags.DEFINE_float("lr", 0.0001, "learning rate")
+    tf.app.flags.DEFINE_float("lr", 0.02, "learning rate")
     tf.app.flags.DEFINE_float("lr_decay", 0.99, "learning rate decay")
     tf.app.flags.DEFINE_float("max_grad", 10.0, "maximum gradient when clipping gradients")
     tf.app.flags.DEFINE_float("dropout", 1.0, "the keep prob of dropout")

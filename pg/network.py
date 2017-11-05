@@ -25,6 +25,23 @@ class Network(BaseNetwork):
             self.states = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name="states")
             self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
 
+            W_fc1, b_fc1 = fc_variable([self._input_shape[-1], 10], name="fc1")
+            h_fc1 = tf.nn.tanh(tf.matmul(self.states, W_fc1) + b_fc1)
+
+            h_fc1_dropout = tf.nn.dropout(h_fc1, self.dropout)
+
+            W_fc2, b_fc2 = fc_variable([10, self._action_dim], name="fc2")
+            h_fc2 = tf.matmul(h_fc1_dropout, W_fc2) + b_fc2
+
+            self.logits = h_fc2
+            self.pi = tf.nn.softmax(self.logits)
+        return
+
+    def _create_network2(self):
+        with tf.device(self._device), tf.variable_scope(self._scope):
+            self.states = tf.placeholder(tf.float32, shape=[None] + self._input_shape, name="states")
+            self.dropout = tf.placeholder(tf.float32, shape=[], name="dropout")
+
             # state_dropout = tf.nn.dropout(self.states, self.dropout)
             W_conv1, b_conv1 = conv_variable([8, 8, self._input_shape[2], 16], name="conv1")
             h_conv1 = tf.nn.relu(conv2d(self.states, W_conv1, 4) + b_conv1)
@@ -56,12 +73,12 @@ class Network(BaseNetwork):
 
     def _prepare_loss(self):
         with tf.name_scope(self._scope):
-            self.actions = tf.placeholder(tf.int64, shape=[None], name="actions")
+            self.actions = tf.placeholder(tf.int32, shape=[None], name="actions")
             self.returns = tf.placeholder(tf.float32, shape=[None], name="returns")
 
             action_onehot = tf.one_hot(self.actions, self._action_dim)
-            _loss = self.returns * tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=action_onehot)
-            # log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
-            # _loss = -tf.reduce_sum(log_pi * action_onehot, axis=1) * self.returns
+            # _loss = self.returns * tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=action_onehot)
+            log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
+            _loss = -tf.reduce_sum(log_pi * action_onehot, axis=1) * self.returns
             self.loss = tf.reduce_mean(_loss)
         return
