@@ -137,7 +137,8 @@ class Agent(BaseAgent):
                 self.global_t += 1
                 action, pi_out = self.pick_action(sess, s_t)
                 # o_t1, reward, done = env.step(action)
-                env.render()
+                if cfg.display:
+                    env.render()
                 o_t1, reward, done, _ = env.step(action)
                 # o_t1 = process_fn(o_t1)
                 # s_t1 = np.concatenate([s_t[:, :, 3 if cfg.use_rgb else 1:], o_t1], axis=2)
