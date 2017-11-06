@@ -28,7 +28,7 @@ class Agent(BaseAgent):
         # input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
         input_shape = [cfg.state_dim]  # for cartpole
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
-        self.main_net = Network(input_shape, cfg.action_dim, "main_net", device)
+        self.main_net = Network(input_shape, cfg.action_dim, cfg.entropy_beta, "main_net", device)
 
         self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         for var in self.main_net.vars:

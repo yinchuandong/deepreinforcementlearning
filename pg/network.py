@@ -10,10 +10,11 @@ from base.base_network import BaseNetwork
 
 class Network(BaseNetwork):
 
-    def __init__(self, input_shape, action_dim, scope="net", device="/gpu:0"):
+    def __init__(self, input_shape, action_dim, entropy_beta, scope="net", device="/gpu:0"):
         BaseNetwork.__init__(self, scope, device)
         self._input_shape = input_shape
         self._action_dim = action_dim
+        self._entropy_beta = entropy_beta
         self._scope = scope
         self._device = device
         self._create_network()
@@ -56,6 +57,7 @@ class Network(BaseNetwork):
             action_onehot = tf.one_hot(self.actions, self._action_dim)
             # _loss = self.returns * tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=action_onehot)
             log_pi = tf.log(tf.clip_by_value(self.pi, 1e-20, 1.0))
-            _loss = -tf.reduce_sum(log_pi * action_onehot, axis=1) * self.returns
-            self.loss = tf.reduce_mean(_loss)
+            entropy = -tf.reduce_sum(self.pi * log_pi, axis=1)
+            _loss = tf.reduce_sum(log_pi * action_onehot, axis=1) * self.returns + self._entropy_beta * entropy
+            self.loss = -tf.reduce_mean(_loss)
         return

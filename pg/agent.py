@@ -27,7 +27,7 @@ class Agent(BaseAgent):
         state_chn = cfg.state_history * (3 if cfg.use_rgb else 1)
         input_shape = [cfg.state_dim, cfg.state_dim, state_chn]
         device = "/gpu:0" if cfg.use_gpu else "/cpu:0"
-        self.main_net = Network(input_shape, cfg.action_dim, "main_net", device)
+        self.main_net = Network(input_shape, cfg.action_dim, cfg.entropy_beta, "main_net", device)
 
         self.logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         for var in self.main_net.vars:

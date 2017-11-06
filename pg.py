@@ -90,8 +90,9 @@ if __name__ == "__main__":
     tf.app.flags.DEFINE_integer("batch_size", 200, "batch_size")
 
     tf.app.flags.DEFINE_float("gamma", 0.99, "the discounted factor of reward")
-    tf.app.flags.DEFINE_float("lr", 0.02, "learning rate")
+    tf.app.flags.DEFINE_float("lr", 0.00025, "learning rate")
     tf.app.flags.DEFINE_float("lr_decay", 0.99, "learning rate decay")
     tf.app.flags.DEFINE_float("max_grad", 10.0, "maximum gradient when clipping gradients")
     tf.app.flags.DEFINE_float("dropout", 1.0, "the keep prob of dropout")
+    tf.app.flags.DEFINE_float("entropy_beta", 0.1, "the regularization of action exploration")
     tf.app.run()
